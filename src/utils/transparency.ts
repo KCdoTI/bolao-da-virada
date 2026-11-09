@@ -91,3 +91,88 @@ O bolão obteve premiação oficial no concurso com valor total de R$ ${totalPre
 
 Favor confirmar sua chave PIX com o organizador (${chavePixOrganizador}) para efetivação do repasse.`;
 }
+
+/**
+ * Monta mensagem coletiva para o grupo do WhatsApp alertando participantes pendentes
+ */
+export function buildWhatsAppReminderGroupMessage(
+  bolao: Bolao,
+  participantesPendentes: Participante[],
+  publicUrl: string
+): string {
+  const cotasPendentes = participantesPendentes.reduce((acc, p) => acc + p.qtd_cotas, 0);
+  const valorTotalPendente = cotasPendentes * bolao.valor_cota;
+
+  const dataFmt = new Date(bolao.data_limite).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+  const horaFmt = new Date(bolao.data_limite).toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  return `*LEMBRETE DO BOLÃO — ${bolao.nome.toUpperCase()}*
+Modalidade: ${bolao.modalidade} (Concurso #${bolao.concurso_numero})
+
+Atenção participantes! Ainda temos cotas pendentes para registrar todos os bilhetes na lotérica antes do prazo final.
+
+[Cotas Pendentes de Confirmação]
+• Participantes com cota pendente: ${participantesPendentes.length}
+• Cotas a confirmar: ${cotasPendentes} cota(s) (Total: R$ ${valorTotalPendente.toFixed(2)})
+• Prazo Limite: ${dataFmt} às ${horaFmt}
+
+[Dados para Pagamento via PIX]
+• Chave PIX do Organizador: ${bolao.chave_pix_organizador}
+• Valor por cota: R$ ${bolao.valor_cota.toFixed(2)}
+
+Após realizar a transferência, favor enviar o comprovante para confirmação imediata.
+
+Acompanhe o status e os bilhetes registrados em tempo real:
+${publicUrl}`;
+}
+
+/**
+ * Monta mensagem individual e personalizada para cobrança direta do participante
+ */
+export function buildWhatsAppIndividualReminderMessage(
+  participante: Participante,
+  bolao: Bolao,
+  publicUrl: string
+): string {
+  const totalDevido = participante.qtd_cotas * bolao.valor_cota;
+
+  const dataFmt = new Date(bolao.data_limite).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+  const horaFmt = new Date(bolao.data_limite).toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  return `Olá ${participante.nome}! Tudo bem?
+
+Passando para lembrar da sua participação no *${bolao.nome}* (${bolao.modalidade}):
+
+• Suas cotas reservadas: ${participante.qtd_cotas} ${participante.qtd_cotas === 1 ? 'cota' : 'cotas'}
+• Valor a transferir: R$ ${totalDevido.toFixed(2)}
+• Chave PIX do Organizador: ${bolao.chave_pix_organizador}
+• Prazo limite: ${dataFmt} às ${horaFmt}
+
+Assim que fizer o PIX, me avise para eu marcar sua cota como Paga no painel do grupo!
+
+Você pode acompanhar os jogos e comprovantes do bolão aqui:
+${publicUrl}`;
+}
+
+/**
+ * Cria o link direto para abertura do WhatsApp web ou app
+ */
+export function buildWhatsAppDirectUrl(phone: string, text: string): string {
+  const digits = phone.replace(/\D/g, '');
+  const cleanPhone = digits.startsWith('55') ? digits : `55${digits}`;
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
+}

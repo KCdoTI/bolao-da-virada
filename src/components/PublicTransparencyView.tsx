@@ -15,6 +15,8 @@ import {
   Eye,
   Info,
   Scale,
+  BellRing,
+  MessageCircle,
 } from 'lucide-react';
 import { Bolao, Participante, Jogo } from '../types';
 import { maskPhone } from '../utils/transparency';
@@ -22,6 +24,7 @@ import { conferirJogo, calcularRateio } from '../utils/lotteryEngine';
 import { TicketViewerModal } from './TicketViewerModal';
 import { LegalFaqModal } from './LegalFaqModal';
 import { BrandLogo } from './BrandLogo';
+import { AlertarPendentesModal } from './AlertarPendentesModal';
 
 interface PublicTransparencyViewProps {
   bolao: Bolao;
@@ -40,6 +43,7 @@ export const PublicTransparencyView: React.FC<PublicTransparencyViewProps> = ({
 }) => {
   const [pixCopied, setPixCopied] = useState(false);
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [modalFoto, setModalFoto] = useState<{
     open: boolean;
     imageUrl?: string;
@@ -54,7 +58,9 @@ export const PublicTransparencyView: React.FC<PublicTransparencyViewProps> = ({
 
   const isSorteado = dezenasSorteadas && dezenasSorteadas.length === 6;
 
-  // Cotas
+  // Cotas e Pendências
+  const pendentes = participantes.filter((p) => p.status_pagamento === 'Pendente');
+  const cotasPendentes = pendentes.reduce((acc, p) => acc + p.qtd_cotas, 0);
   const cotasPagas = participantes
     .filter((p) => p.status_pagamento === 'Pago')
     .reduce((acc, p) => acc + p.qtd_cotas, 0);
@@ -347,7 +353,7 @@ export const PublicTransparencyView: React.FC<PublicTransparencyViewProps> = ({
 
         {/* SEÇÃO 3: LISTA DE COTISTAS (TRANSPARÊNCIA + LGPD) */}
         <section aria-label="Lista de Cotistas" className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xs">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <Users size={18} className="text-emerald-400" />
               <h2 className="font-bold text-sm sm:text-base text-white">
@@ -359,6 +365,31 @@ export const PublicTransparencyView: React.FC<PublicTransparencyViewProps> = ({
               <span>Privacidade LGPD (telefones ofuscados)</span>
             </div>
           </div>
+
+          {/* Social Nudge Banner para Cotistas Alertarem Amigos Pendentes */}
+          {pendentes.length > 0 && (
+            <div className="mb-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5">
+                <BellRing size={18} className="text-amber-400 shrink-0" />
+                <div>
+                  <span className="font-bold text-amber-300">
+                    {pendentes.length} {pendentes.length === 1 ? 'amigo ainda não confirmou o PIX' : 'amigos ainda não confirmaram o PIX'}
+                  </span>
+                  <p className="text-[11px] text-slate-400">
+                    Ainda restam {cotasPendentes} {cotasPendentes === 1 ? 'cota pendente' : 'cotas pendentes'}. Ajude a alertar o grupo no WhatsApp para garantir o registro a tempo!
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAlertModalOpen(true)}
+                className="flex items-center justify-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold py-2.5 px-3.5 min-h-[40px] rounded-xl border border-amber-500/40 transition active:scale-[0.98] shrink-0"
+              >
+                <MessageCircle size={15} />
+                <span>Alertar Amigos no WhatsApp</span>
+              </button>
+            </div>
+          )}
 
           <div className="divide-y divide-slate-800">
             {participantes.map((p) => {
@@ -434,6 +465,15 @@ export const PublicTransparencyView: React.FC<PublicTransparencyViewProps> = ({
       <LegalFaqModal
         isOpen={isLegalModalOpen}
         onClose={() => setIsLegalModalOpen(false)}
+      />
+
+      {/* Modal de Alerta de Cotas Pendentes */}
+      <AlertarPendentesModal
+        isOpen={isAlertModalOpen}
+        onClose={() => setIsAlertModalOpen(false)}
+        bolao={bolao}
+        participantes={participantes}
+        isOrganizerView={false}
       />
     </div>
   );

@@ -8,8 +8,15 @@ import {
   Trash2,
   Phone,
   Filter,
+  BellRing,
+  MessageCircle,
 } from 'lucide-react';
 import { Participante, Bolao } from '../types';
+import { AlertarPendentesModal } from './AlertarPendentesModal';
+import {
+  buildWhatsAppIndividualReminderMessage,
+  buildWhatsAppDirectUrl,
+} from '../utils/transparency';
 
 interface ParticipantListProps {
   bolao: Bolao;
@@ -28,6 +35,13 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
 }) => {
   const [search, setSearch] = useState('');
   const [filtroStatus, setFiltroStatus] = useState<'todos' | 'Pago' | 'Pendente'>('todos');
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+
+  const pendentes = participantes.filter((p) => p.status_pagamento === 'Pendente');
+
+  const publicUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}${window.location.pathname}#${bolao.id}`
+    : `https://bolao-da-virada.app/#${bolao.id}`;
 
   const filtered = participantes.filter((p) => {
     const matchesSearch =
@@ -49,14 +63,28 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
           </h2>
         </div>
 
-        <button
-          type="button"
-          onClick={onOpenAddModal}
-          className="flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2.5 px-3.5 min-h-[40px] rounded-xl transition-all duration-150 active:scale-[0.98] shadow-xs self-stretch sm:self-auto"
-        >
-          <PlusCircle size={15} />
-          <span>Adicionar Cotista</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {pendentes.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setIsAlertModalOpen(true)}
+              aria-label={`Cobrar participantes pendentes (${pendentes.length})`}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold py-2.5 px-3.5 min-h-[40px] rounded-xl border border-amber-500/30 transition-all duration-150 active:scale-[0.98]"
+            >
+              <BellRing size={15} className="text-amber-500" />
+              <span>Cobrar Pendentes ({pendentes.length})</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onOpenAddModal}
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2.5 px-3.5 min-h-[40px] rounded-xl transition-all duration-150 active:scale-[0.98] shadow-xs"
+          >
+            <PlusCircle size={15} />
+            <span>Adicionar Cotista</span>
+          </button>
+        </div>
       </div>
 
       {/* Controles de Busca e Filtro */}
@@ -158,6 +186,23 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
                       )}
                     </button>
 
+                    {/* Cobrança Rápida WhatsApp se Pendente */}
+                    {!isPago && (
+                      <a
+                        href={buildWhatsAppDirectUrl(
+                          participante.telefone,
+                          buildWhatsAppIndividualReminderMessage(participante, bolao, publicUrl)
+                        )}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Cobrar ${participante.nome} no WhatsApp`}
+                        aria-label={`Enviar cobrança no WhatsApp para ${participante.nome}`}
+                        className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-emerald-600 dark:text-emerald-400 hover:text-white rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 dark:hover:bg-emerald-600 border border-emerald-200 dark:border-emerald-800/80 active:scale-[0.95] transition-all duration-150"
+                      >
+                        <MessageCircle size={16} />
+                      </a>
+                    )}
+
                     {/* Excluir Participante (Touch Target 40x40) */}
                     <button
                       type="button"
@@ -175,6 +220,15 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
           })
         )}
       </div>
+
+      {/* Modal de Alerta / Cobrança de Pendentes */}
+      <AlertarPendentesModal
+        isOpen={isAlertModalOpen}
+        onClose={() => setIsAlertModalOpen(false)}
+        bolao={bolao}
+        participantes={participantes}
+        isOrganizerView={true}
+      />
     </div>
   );
 };

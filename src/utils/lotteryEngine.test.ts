@@ -100,3 +100,36 @@ test('parseCaixaTicketText extracts valid Mega-Sena numbers from thermal ticket 
   assert.ok(candidates2.length > 0);
   assert.deepEqual(candidates2[0].dezenas, [3, 10, 18, 34, 42, 55, 60]);
 });
+
+test('buildWhatsAppReminderGroupMessage formats reminder with pending counts and pix', async () => {
+  const { buildWhatsAppReminderGroupMessage, buildWhatsAppIndividualReminderMessage, buildWhatsAppDirectUrl } = await import('./transparency');
+  const mockBolao: Bolao = {
+    id: 'b-test',
+    nome: 'Bolão dos Amigos',
+    modalidade: 'Mega da Virada',
+    concurso_numero: 2810,
+    valor_cota: 50,
+    data_limite: '2026-12-31T17:00:00',
+    chave_pix_organizador: 'organizador@pix.com',
+    status: 'aberto',
+  };
+  const pendentes: Participante[] = [
+    { id: '1', bolao_id: 'b-test', nome: 'Fernanda', telefone: '(31) 98456-7890', qtd_cotas: 2, status_pagamento: 'Pendente' },
+    { id: '2', bolao_id: 'b-test', nome: 'Guilherme', telefone: '(81) 99334-5566', qtd_cotas: 1, status_pagamento: 'Pendente' },
+  ];
+
+  const groupMsg = buildWhatsAppReminderGroupMessage(mockBolao, pendentes, 'https://test.app/#b-test');
+  assert.ok(groupMsg.includes('BOLÃO DOS AMIGOS'));
+  assert.ok(groupMsg.includes('Cotas a confirmar: 3 cota(s) (Total: R$ 150.00)'));
+  assert.ok(groupMsg.includes('organizador@pix.com'));
+  assert.ok(groupMsg.includes('https://test.app/#b-test'));
+
+  const indMsg = buildWhatsAppIndividualReminderMessage(pendentes[0], mockBolao, 'https://test.app/#b-test');
+  assert.ok(indMsg.includes('Olá Fernanda!'));
+  assert.ok(indMsg.includes('2 cotas'));
+  assert.ok(indMsg.includes('R$ 100.00'));
+  assert.ok(indMsg.includes('organizador@pix.com'));
+
+  const directUrl = buildWhatsAppDirectUrl('(31) 98456-7890', 'Olá');
+  assert.ok(directUrl.startsWith('https://wa.me/5531984567890?text='));
+});
