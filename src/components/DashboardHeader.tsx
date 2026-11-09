@@ -12,6 +12,7 @@ import {
   Sparkles,
   Printer,
   Scale,
+  Calculator,
 } from 'lucide-react';
 import { Bolao } from '../types';
 import { BrandLogo } from './BrandLogo';
@@ -24,6 +25,7 @@ interface DashboardHeaderProps {
   onOpenAiConsultant: () => void;
   onOpenPrintReport: () => void;
   onOpenLegalModal: () => void;
+  onOpenSimulador?: () => void;
   darkMode: boolean;
   onToggleTheme: () => void;
 }
@@ -36,6 +38,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onOpenAiConsultant,
   onOpenPrintReport,
   onOpenLegalModal,
+  onOpenSimulador,
   darkMode,
   onToggleTheme,
 }) => {
@@ -100,6 +103,18 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {activeView === 'organizador' && (
               <>
+                {onOpenSimulador && (
+                  <button
+                    type="button"
+                    onClick={onOpenSimulador}
+                    className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 min-h-[36px] rounded-xl bg-slate-800/80 hover:bg-slate-800 text-emerald-400 border border-slate-700/60 text-xs font-semibold transition-all duration-150 active:scale-[0.98]"
+                    title="Planejador Pré-Bolão e Simulação de Cenários"
+                  >
+                    <Calculator size={14} />
+                    <span>Planejador</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={onOpenAiConsultant}

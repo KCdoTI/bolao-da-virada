@@ -24,7 +24,9 @@ import { AddParticipantModal } from './components/AddParticipantModal';
 import { AiStrategyModal } from './components/AiStrategyModal';
 import { PrintReportModal } from './components/PrintReportModal';
 import { LegalFaqModal } from './components/LegalFaqModal';
+import { SimuladorPreBolaoModal } from './components/SimuladorPreBolaoModal';
 import { ToastContainer, ToastMessage } from './components/Toast';
+import { Calculator } from 'lucide-react';
 
 export default function App() {
   // Estado com persistência em LocalStorage
@@ -76,6 +78,7 @@ export default function App() {
   const [isAiStrategyOpen, setIsAiStrategyOpen] = useState(false);
   const [isPrintReportOpen, setIsPrintReportOpen] = useState(false);
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
+  const [isSimuladorOpen, setIsSimuladorOpen] = useState(false);
 
   // Dezenas sugeridas pela IA para carregar no volante
   const [prefilledDezenas, setPrefilledDezenas] = useState<number[]>([]);
@@ -199,6 +202,22 @@ export default function App() {
     addToast('success', 'Estratégia IA Aplicada!', `${dezenas.length} dezenas carregadas no volante.`);
   };
 
+  // Aplica parâmetros do simulador pré-bolão
+  const handleAplicarParametrosPreBolao = (novoValorCota: number, novoPrazoLimite: string) => {
+    const updated: Bolao = {
+      ...bolao,
+      valor_cota: novoValorCota,
+      data_limite: novoPrazoLimite,
+    };
+    setBolao(updated);
+    localStorage.setItem('bolao_da_virada_info', JSON.stringify(updated));
+    addToast(
+      'success',
+      'Planejamento Aplicado',
+      `Cota fixada em R$ ${novoValorCota.toFixed(2)} e prazo seguro atualizado.`
+    );
+  };
+
   // Restaura dados de fábrica
   const handleResetData = () => {
     if (window.confirm('Deseja restaurar os dados originais de demonstração da Mega da Virada 2026?')) {
@@ -241,6 +260,7 @@ export default function App() {
         onOpenAiConsultant={() => setIsAiStrategyOpen(true)}
         onOpenPrintReport={() => setIsPrintReportOpen(true)}
         onOpenLegalModal={() => setIsLegalModalOpen(true)}
+        onOpenSimulador={() => setIsSimuladorOpen(true)}
         darkMode={darkMode}
         onToggleTheme={() => setDarkMode(!darkMode)}
       />
@@ -307,6 +327,16 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap self-stretch sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setIsSimuladorOpen(true)}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 min-h-[40px] bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 font-semibold text-xs rounded-xl shadow-xs transition-all duration-150 active:scale-[0.98]"
+              title="Planejador Pré-Bolão e Simulação de Cenários"
+            >
+              <Calculator size={14} className="text-emerald-400" />
+              <span>Planejar Cenários</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setIsAiStrategyOpen(true)}
@@ -421,6 +451,13 @@ export default function App() {
       <LegalFaqModal
         isOpen={isLegalModalOpen}
         onClose={() => setIsLegalModalOpen(false)}
+      />
+
+      <SimuladorPreBolaoModal
+        isOpen={isSimuladorOpen}
+        onClose={() => setIsSimuladorOpen(false)}
+        onAplicarParametros={handleAplicarParametrosPreBolao}
+        valorCotaAtual={bolao.valor_cota}
       />
 
       {/* Toasts */}
