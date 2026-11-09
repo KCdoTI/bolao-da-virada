@@ -14,6 +14,7 @@ import {
   Scale,
 } from 'lucide-react';
 import { Bolao } from '../types';
+import { BrandLogo } from './BrandLogo';
 
 interface DashboardHeaderProps {
   bolao: Bolao;
@@ -47,32 +48,35 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   };
 
   return (
-    <header className="bg-emerald-800 dark:bg-emerald-950 text-white border-b border-emerald-900 transition-colors">
+    <header className="bg-slate-900 border-b border-slate-800 text-white transition-colors">
       {/* Top Bar - 3 Zonas Estritas */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
         {/* Zona 1: Marca / Nome */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center text-base shadow-sm">
-            🍀
+        <div className="flex items-center gap-3 shrink-0">
+          <BrandLogo size={32} />
+          <div>
+            <span className="font-bold text-base sm:text-lg tracking-tight text-white block leading-tight">
+              Bolão da Virada
+            </span>
+            <span className="text-[10px] text-emerald-400 font-medium tracking-wide block uppercase">
+              Gestão & Auditoria de Cotas
+            </span>
           </div>
-          <span className="font-extrabold text-lg sm:text-xl tracking-tight text-white whitespace-nowrap">
-            Bolão da Virada
-          </span>
         </div>
 
         {/* Zona 2: Seletor de Visão (Organizador vs Participante) */}
-        <nav aria-label="Modo de Visualização" className="flex items-center p-1 bg-emerald-900/90 dark:bg-slate-900/90 rounded-xl border border-emerald-700/60">
+        <nav aria-label="Modo de Visualização" className="flex items-center p-1 bg-slate-950/80 rounded-xl border border-slate-800">
           <button
             type="button"
             onClick={() => onChangeView('organizador')}
             aria-pressed={activeView === 'organizador'}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 whitespace-nowrap ${
               activeView === 'organizador'
-                ? 'bg-white text-emerald-950 shadow-xs'
-                : 'text-emerald-200 hover:text-white'
+                ? 'bg-slate-800 text-white shadow-xs'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
-            <LayoutDashboard size={14} />
+            <LayoutDashboard size={14} className={activeView === 'organizador' ? 'text-emerald-400' : 'text-slate-400'} />
             <span>Organizador</span>
           </button>
 
@@ -80,13 +84,13 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             type="button"
             onClick={() => onChangeView('publico')}
             aria-pressed={activeView === 'publico'}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 whitespace-nowrap ${
               activeView === 'publico'
-                ? 'bg-white text-emerald-950 shadow-xs'
-                : 'text-emerald-200 hover:text-white'
+                ? 'bg-slate-800 text-white shadow-xs'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
-            <Eye size={14} />
+            <Eye size={14} className={activeView === 'publico' ? 'text-emerald-400' : 'text-slate-400'} />
             <span>Cotista (Público)</span>
           </button>
         </nav>
@@ -98,7 +102,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               <button
                 type="button"
                 onClick={onOpenAiConsultant}
-                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-900/80 hover:bg-emerald-900 text-amber-300 border border-emerald-700/60 text-xs font-bold transition active:scale-95 shadow-xs"
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-amber-300 border border-slate-700/60 text-xs font-semibold transition-all duration-150 active:scale-[0.98] shadow-xs"
                 title="Consultor e Gerador de Jogos com IA"
               >
                 <Sparkles size={14} />
@@ -108,7 +112,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               <button
                 type="button"
                 onClick={onOpenPrintReport}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-900/80 hover:bg-emerald-900 text-emerald-200 hover:text-white border border-emerald-700/60 text-xs font-bold transition active:scale-95"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/60 text-xs font-semibold transition-all duration-150 active:scale-[0.98]"
                 title="Extrato oficial para impressão"
               >
                 <Printer size={14} />
@@ -118,7 +122,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               <button
                 type="button"
                 onClick={onOpenLegalModal}
-                className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-900/80 hover:bg-emerald-900 text-emerald-200 hover:text-white border border-emerald-700/60 text-xs font-bold transition active:scale-95"
+                className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/60 text-xs font-semibold transition-all duration-150 active:scale-[0.98]"
                 title="Regras, Licenciamento e Instalação PWA"
               >
                 <Scale size={14} />
@@ -131,7 +135,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             type="button"
             onClick={onToggleTheme}
             aria-label={darkMode ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
-            className="p-2 rounded-xl bg-emerald-900/60 hover:bg-emerald-900 text-emerald-200 hover:text-white border border-emerald-700/50 transition"
+            className="p-2 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700/50 transition-colors"
             title="Alternar tema claro/escuro"
           >
             {darkMode ? <Sun size={16} /> : <Moon size={16} />}
@@ -141,7 +145,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             <button
               type="button"
               onClick={onOpenNovoJogo}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black rounded-xl shadow-xs transition active:scale-95 whitespace-nowrap"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl shadow-xs transition-all duration-150 active:scale-[0.98] whitespace-nowrap"
             >
               <PlusCircle size={15} />
               <span>Novo Jogo</span>
@@ -152,16 +156,17 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 
       {/* Hero Strip de Contexto do Bolão (quando na visão do organizador) */}
       {activeView === 'organizador' && (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 pb-12 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-3 pb-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
+              <span className="inline-flex items-center gap-1.5 bg-emerald-950/80 text-emerald-300 border border-emerald-700/60 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                 {bolao.modalidade}
               </span>
-              <span className="text-emerald-200 text-xs font-medium">
-                Concurso Oficial #{bolao.concurso_numero}
+              <span className="text-slate-400 text-xs font-mono">
+                Concurso #{bolao.concurso_numero}
               </span>
-              <span className="text-emerald-200 text-xs font-medium">
+              <span className="text-slate-400 text-xs font-mono">
                 · Cota: R$ {bolao.valor_cota.toFixed(2)}
               </span>
             </div>
@@ -175,11 +180,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               type="button"
               onClick={copyPix}
               aria-label="Copiar chave PIX do organizador"
-              className="flex items-center gap-2 text-xs font-semibold bg-emerald-900/80 hover:bg-emerald-900 border border-emerald-700/60 py-2 px-3.5 rounded-xl transition active:scale-95 text-white shadow-xs"
+              className="flex items-center gap-2 text-xs font-semibold bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 py-2 px-3.5 rounded-xl transition-all duration-150 active:scale-[0.98] text-white shadow-xs"
             >
-              {copiedPix ? <Check size={15} className="text-emerald-300" /> : <Copy size={15} />}
+              {copiedPix ? <Check size={15} className="text-emerald-400" /> : <Copy size={15} />}
               <span>
-                PIX: <strong className="font-mono">{bolao.chave_pix_organizador}</strong>
+                PIX: <strong className="font-mono text-emerald-300">{bolao.chave_pix_organizador}</strong>
               </span>
             </button>
           </div>

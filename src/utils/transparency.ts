@@ -52,21 +52,21 @@ export function buildWhatsAppShareMessage(
     minute: '2-digit',
   });
 
-  return `🍀 *${bolao.nome.toUpperCase()}* 🍀
-Modalidade: *${bolao.modalidade}* (Concurso #${bolao.concurso_numero})
+  return `*${bolao.nome.toUpperCase()}*
+Modalidade: ${bolao.modalidade} (Concurso #${bolao.concurso_numero})
 
-💰 *Valor da Cota:* R$ ${bolao.valor_cota.toFixed(2)}
-📅 *Data Limite de Pagamento:* ${dataFmt} às ${horaFmt}
-🔑 *Chave PIX do Organizador:* ${bolao.chave_pix_organizador}
+• Valor da Cota: R$ ${bolao.valor_cota.toFixed(2)}
+• Data Limite de Pagamento: ${dataFmt} às ${horaFmt}
+• Chave PIX do Organizador: ${bolao.chave_pix_organizador}
 
-📊 *Status do Bolão:*
-• *${cotasPagas}/${totalCotas}* cotas confirmadas (${totalCotas > 0 ? Math.round((cotasPagas / totalCotas) * 100) : 0}%)
-• *${jogos.length}* jogos registrados com comprovantes
+[Status de Arrecadação]
+• Cotas confirmadas: ${cotasPagas}/${totalCotas} (${totalCotas > 0 ? Math.round((cotasPagas / totalCotas) * 100) : 0}%)
+• Jogos autenticados: ${jogos.length} apostas
 
-🔍 *Acompanhe pelo Link de Transparência (sem login):*
+[Painel de Transparência e Auditoria (sem login)]
 ${publicUrl}
 
-Comprovantes oficiais autenticados e conferência ao vivo após o sorteio! 🥂✨`;
+Comprovantes autenticados pela Caixa e conferência automatizada pós-sorteio.`;
 }
 
 /**
@@ -80,14 +80,14 @@ export function buildWhatsAppPayoutMessage(
   valorAReceber: number,
   chavePixOrganizador: string
 ): string {
-  return `🎉 *PARABÉNS, ${nome.toUpperCase()}! NOSSO BOLÃO FOI PREMIADO!* 🥂🍀
+  return `*COMUNICADO OFICIAL DE RATEIO — ${bolaoNome.toUpperCase()}*
+Participante: ${nome}
 
-No *${bolaoNome}*, o total conquistado pelo grupo foi de *R$ ${totalPremioBolao.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}*!
+O bolão obteve premiação oficial no concurso com valor total de R$ ${totalPremioBolao.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.
 
-📊 *Seu Rateio Financeiro:*
-• Cotas pagas: *${cotasPagas}*
-• Valor total a receber: *R$ ${valorAReceber.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}*
+[Demonstrativo Individual]
+• Cotas pagas vinculadas: ${cotasPagas}
+• Valor total a receber: R$ ${valorAReceber.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
 
-Favor confirmar sua chave PIX com o organizador para a transferência do seu prêmio.
-Parabéns a todos os cotistas! 💰🚀`;
+Favor confirmar sua chave PIX com o organizador (${chavePixOrganizador}) para efetivação do repasse.`;
 }

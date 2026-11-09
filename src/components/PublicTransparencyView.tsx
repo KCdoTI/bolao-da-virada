@@ -21,6 +21,7 @@ import { maskPhone } from '../utils/transparency';
 import { conferirJogo, calcularRateio } from '../utils/lotteryEngine';
 import { TicketViewerModal } from './TicketViewerModal';
 import { LegalFaqModal } from './LegalFaqModal';
+import { BrandLogo } from './BrandLogo';
 
 interface PublicTransparencyViewProps {
   bolao: Bolao;
@@ -116,25 +117,30 @@ export const PublicTransparencyView: React.FC<PublicTransparencyViewProps> = ({
       {/* Header do Bolão Público */}
       <header className="bg-slate-900/90 border-b border-slate-800 px-4 py-6 sm:py-8 backdrop-blur-md">
         <div className="max-w-4xl mx-auto space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="bg-amber-400 text-slate-950 text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full">
-              {bolao.modalidade}
-            </span>
-            <span className="text-xs text-slate-400">Concurso #{bolao.concurso_numero}</span>
-            <span
-              className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                isSorteado
-                  ? 'bg-purple-950 text-purple-300 border border-purple-800/80'
-                  : 'bg-emerald-950 text-emerald-300 border border-emerald-800/80'
-              }`}
-            >
-              {isSorteado ? 'Sorteio Realizado' : 'Apostas Abertas'}
-            </span>
+          <div className="flex items-center gap-3.5">
+            <BrandLogo size={36} />
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  {bolao.modalidade}
+                </span>
+                <span className="text-xs font-mono text-slate-400">Concurso #{bolao.concurso_numero}</span>
+                <span
+                  className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full ${
+                    isSorteado
+                      ? 'bg-purple-950 text-purple-300 border border-purple-800/80'
+                      : 'bg-emerald-950 text-emerald-300 border border-emerald-800/80'
+                  }`}
+                >
+                  {isSorteado ? 'Sorteio Realizado' : 'Apostas Abertas'}
+                </span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-1">
+                {bolao.nome}
+              </h1>
+            </div>
           </div>
-
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            {bolao.nome}
-          </h1>
 
           <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
             Acompanhe em tempo real a arrecadação das cotas, veja os bilhetes autenticados pela Caixa e confira o rateio oficial dos prêmios.

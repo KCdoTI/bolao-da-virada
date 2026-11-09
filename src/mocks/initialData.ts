@@ -2,7 +2,7 @@ import { Bolao, Participante, Jogo } from '../types';
 
 export const mockBolao: Bolao = {
   id: 'bolao-virada-2026',
-  nome: 'Bolão da Virada 2026 - Rumo aos Milhões 🍀',
+  nome: 'Bolão da Virada 2026 — Gestão de Cotas',
   modalidade: 'Mega da Virada',
   concurso_numero: 2810,
   valor_cota: 50.00,

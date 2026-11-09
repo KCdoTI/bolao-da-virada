@@ -139,21 +139,21 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
                       type="button"
                       onClick={() => onToggleStatus(participante.id)}
                       aria-label={`Alternar pagamento de ${participante.nome}: atualmente ${participante.status_pagamento}`}
-                      className={`text-xs font-bold px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 active:scale-95 shadow-xs ${
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all duration-150 flex items-center gap-1.5 active:scale-[0.98] border shadow-xs ${
                         isPago
-                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 hover:bg-amber-100 hover:text-amber-800 border border-emerald-300 dark:border-emerald-800'
-                          : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 hover:bg-emerald-100 hover:text-emerald-800 border border-amber-300 dark:border-amber-800'
+                          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                          : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
                       }`}
                     >
                       {isPago ? (
                         <>
-                          <CheckCircle2 size={14} className="text-emerald-600" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                           <span>Pago</span>
                         </>
                       ) : (
                         <>
-                          <Clock size={14} className="text-amber-600" />
-                          <span>Marcar como Pago</span>
+                          <Clock size={13} className="text-amber-500" />
+                          <span>Pendente</span>
                         </>
                       )}
                     </button>

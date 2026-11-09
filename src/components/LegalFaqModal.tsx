@@ -18,18 +18,20 @@ export const LegalFaqModal: React.FC<LegalFaqModalProps> = ({ isOpen, onClose })
     >
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-slate-800 dark:text-slate-100">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-emerald-900 flex items-center justify-between bg-emerald-800 text-white">
-          <div className="flex items-center gap-2">
-            <Scale size={20} className="text-amber-300" />
+        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900 text-white">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-slate-800 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shadow-xs">
+              <Scale size={18} />
+            </div>
             <div>
               <h3 className="font-bold text-base leading-tight">Guia Legal, Regras e Distribuição</h3>
-              <p className="text-xs text-emerald-100">Transparência jurídica e arquitetura da plataforma</p>
+              <p className="text-xs text-slate-400">Transparência jurídica e arquitetura da plataforma</p>
             </div>
           </div>
           <button
             onClick={onClose}
             aria-label="Fechar guia legal"
-            className="p-1 rounded-lg hover:bg-emerald-700 text-emerald-100 transition"
+            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
           >
             <X size={20} />
           </button>

@@ -79,21 +79,21 @@ export const AiStrategyModal: React.FC<AiStrategyModalProps> = ({
     >
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-emerald-900 flex items-center justify-between bg-gradient-to-r from-emerald-800 to-teal-900 text-white">
+        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900 text-white">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shadow-xs">
-              <Sparkles size={18} />
+            <div className="w-8 h-8 rounded-xl bg-slate-800 border border-amber-500/30 text-amber-400 flex items-center justify-center shadow-xs">
+              <Sparkles size={16} />
             </div>
             <div>
-              <h3 className="font-bold text-base leading-tight">Consultor IA & Gerador Estratégico</h3>
-              <p className="text-xs text-emerald-100">Otimização probabilística baseada no histórico da Mega da Virada</p>
+              <h3 className="font-bold text-base leading-tight">Consultor Estatístico & IA</h3>
+              <p className="text-xs text-slate-400">Otimização probabilística baseada no histórico oficial da Mega da Virada</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
             aria-label="Fechar consultor IA"
-            className="p-1 rounded-lg hover:bg-emerald-700 text-emerald-100 transition"
+            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
           >
             <X size={20} />
           </button>
@@ -400,7 +400,7 @@ export const AiStrategyModal: React.FC<AiStrategyModalProps> = ({
               <button
                 type="button"
                 onClick={handleAplicar}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5 active:scale-95"
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-xs transition-all duration-150 flex items-center gap-1.5 active:scale-[0.98]"
               >
                 <Check size={16} />
                 <span>Preencher no Volante</span>

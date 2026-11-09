@@ -104,13 +104,14 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Dezenas:</span>
               <span
-                className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                className={`inline-flex items-center gap-1.5 text-xs font-mono font-bold px-2.5 py-1 rounded-full ${
                   isValid
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                    : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30'
                 }`}
               >
-                {count} / 15 {count >= 6 ? '✓' : '(mín. 6)'}
+                <span>{count} / 15</span>
+                {isValid ? <Check size={12} className="text-emerald-600 dark:text-emerald-400" /> : <span className="text-[10px] font-sans font-normal">(mín. 6)</span>}
               </span>
 
               {count >= 6 && (

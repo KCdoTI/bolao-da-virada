@@ -40,16 +40,16 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
     >
       <div className="bg-white text-slate-900 w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden border border-slate-200">
         {/* Header de Ação (não impresso) */}
-        <div className="p-4 border-b border-slate-200 bg-emerald-800 text-white flex items-center justify-between print:hidden">
+        <div className="p-4 border-b border-slate-800 bg-slate-900 text-white flex items-center justify-between print:hidden">
           <div className="flex items-center gap-2">
-            <Printer size={18} className="text-amber-300" />
+            <Printer size={18} className="text-emerald-400" />
             <h3 className="font-bold text-sm">Extrato Oficial de Prestação de Contas (PDF/Impressão)</h3>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 active:scale-95"
+              className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-all duration-150 flex items-center gap-1.5 active:scale-[0.98]"
             >
               <Printer size={14} />
               <span>Imprimir / Salvar PDF</span>
@@ -58,7 +58,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
             <button
               onClick={onClose}
               aria-label="Fechar relatório"
-              className="p-1 rounded-lg hover:bg-emerald-700 text-emerald-100 transition"
+              className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
             >
               <X size={20} />
             </button>

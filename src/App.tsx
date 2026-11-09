@@ -310,16 +310,16 @@ export default function App() {
             <button
               type="button"
               onClick={() => setIsAiStrategyOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-xs transition active:scale-95"
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-semibold text-xs rounded-xl shadow-xs transition-all duration-150 active:scale-[0.98]"
             >
-              <Sparkles size={14} />
-              <span>Gerador IA</span>
+              <Sparkles size={14} className="text-amber-400" />
+              <span>Estratégia IA</span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsPrintReportOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition"
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs rounded-xl transition-all duration-150 active:scale-[0.98]"
               title="Gerar extrato oficial em PDF/Impressão"
             >
               <Printer size={14} />
@@ -330,7 +330,7 @@ export default function App() {
               type="button"
               onClick={handleResetData}
               aria-label="Restaurar dados de teste"
-              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 rounded-lg transition"
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 rounded-lg transition-colors"
               title="Restaurar dados de demonstração"
             >
               <RefreshCw size={14} />
@@ -342,7 +342,7 @@ export default function App() {
                 setPrefilledDezenas([]);
                 setIsVolanteOpen(true);
               }}
-              className="flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-xs transition whitespace-nowrap"
+              className="flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-xs py-2 px-3.5 rounded-xl shadow-xs transition-all duration-150 whitespace-nowrap"
             >
               <PlusCircle size={15} />
               <span>Novo Jogo (Volante / OCR)</span>

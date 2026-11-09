@@ -59,9 +59,9 @@ export const GamesList: React.FC<GamesListProps> = ({
             <button
               type="button"
               onClick={onOpenAiConsultant}
-              className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-black py-2 px-3.5 rounded-xl transition active:scale-95 shadow-xs"
+              className="flex items-center gap-1.5 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 border border-amber-500/30 text-xs font-semibold py-2 px-3.5 rounded-xl transition-all duration-150 active:scale-[0.98] shadow-xs"
             >
-              <Sparkles size={14} />
+              <Sparkles size={14} className="text-amber-400" />
               <span>Consultor IA & Gerador</span>
             </button>
           )}
@@ -69,7 +69,7 @@ export const GamesList: React.FC<GamesListProps> = ({
           <button
             type="button"
             onClick={onOpenNovoJogo}
-            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 px-3.5 rounded-xl transition active:scale-95 shadow-xs"
+            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold py-2 px-3.5 rounded-xl transition-all duration-150 active:scale-[0.98] shadow-xs"
           >
             <PlusCircle size={15} />
             <span>Novo Jogo (Volante / OCR)</span>

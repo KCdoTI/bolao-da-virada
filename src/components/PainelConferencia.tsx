@@ -222,31 +222,31 @@ export const PainelConferencia: React.FC<PainelConferenciaProps> = ({
       {/* Cards de Premiação do Bolão */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Card do Prêmio Total */}
-        <div className="bg-gradient-to-br from-amber-500 to-amber-600 text-white p-5 rounded-2xl shadow-md flex flex-col justify-between">
+        <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 border border-emerald-600/40 text-white p-5 rounded-2xl shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-amber-100 uppercase tracking-wider">
+            <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
               Prêmio Total do Bolão
             </span>
-            <Trophy size={22} className="text-amber-200" />
+            <Trophy size={20} className="text-emerald-400" />
           </div>
           <div className="my-3">
-            <div className="text-2xl sm:text-3xl font-black font-mono tabular-nums leading-none">
+            <div className="text-2xl sm:text-3xl font-black font-mono tabular-nums leading-none text-white">
               R$ {totalPremioBolao.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div className="text-xs text-amber-100 mt-1 font-medium">
+            <div className="text-xs text-slate-300 mt-1.5 font-medium">
               {totalPremioBolao > 0 && totalCotasPagas > 0
                 ? `R$ ${(totalPremioBolao / totalCotasPagas).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} por cota paga`
-                : 'Nenhuma premiação até o momento'}
+                : 'Aguardando divulgação dos números oficiais'}
             </div>
           </div>
           {totalPremioBolao > 0 && (
             <button
               type="button"
               onClick={dispararConfetes}
-              className="mt-1 w-full py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl shadow-xs transition active:scale-95 flex items-center justify-center gap-1.5"
+              className="mt-1 w-full py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5"
             >
               <Sparkles size={14} />
-              <span>Celebrar Vitória! 🥂</span>
+              <span>Celebrar Premiação do Grupo</span>
             </button>
           )}
         </div>
