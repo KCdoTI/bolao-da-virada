@@ -1,12 +1,20 @@
-# 🍀 Bolão da Virada — Gestão, OCR e Transparência
+# Bolão da Virada — Gestão, OCR e Transparência
 
 > Plataforma web moderna e responsiva (Mobile-First / PWA) para organização de bolões da Mega da Virada entre amigos, familiares e colegas de trabalho, com foco em automação, auditoria de bilhetes via OCR, inteligência de apostas e transparência financeira.
 
+[![Vercel](https://img.shields.io/badge/Vercel-Live%20Demo-black.svg?style=flat&logo=vercel)](https://bolao-da-virada-hazel.vercel.app)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg?style=flat&logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-7.0-3178c6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org/)
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v4-38bdf8.svg?style=flat&logo=tailwindcss)](https://tailwindcss.com/)
 [![Vite](https://img.shields.io/badge/Vite-8.3-646cff.svg?style=flat&logo=vite)](https://vitejs.dev/)
 [![Tests](https://img.shields.io/badge/Tests-8%2F8%20Passing-emerald)](./src/utils/lotteryEngine.test.ts)
+
+---
+
+## 🌐 Acesso Online em Produção
+
+Aplicação publicada e hospedada na Vercel:
+👉 **[https://bolao-da-virada-hazel.vercel.app](https://bolao-da-virada-hazel.vercel.app)**
 
 ---
 
