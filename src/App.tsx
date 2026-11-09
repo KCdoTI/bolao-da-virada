@@ -262,14 +262,14 @@ export default function App() {
           onOpenPublicView={() => setActiveView('publico')}
         />
 
-        {/* Abas de Navegação do Painel */}
+        {/* Abas de Navegação do Painel com Escala Ergonômica */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
           {/* Segmented Control de Abas */}
-          <div className="flex items-center p-1 bg-slate-200/80 dark:bg-slate-800/80 rounded-xl self-start border border-slate-300/60 dark:border-slate-700">
+          <div className="flex items-center p-1 bg-slate-200/80 dark:bg-slate-800/80 rounded-xl self-stretch sm:self-start border border-slate-300/60 dark:border-slate-700 overflow-x-auto">
             <button
               type="button"
               onClick={() => setActiveTab('participantes')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 min-h-[40px] rounded-lg text-xs font-bold transition-all duration-150 whitespace-nowrap active:scale-[0.98] ${
                 activeTab === 'participantes'
                   ? 'bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -282,7 +282,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setActiveTab('jogos')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 min-h-[40px] rounded-lg text-xs font-bold transition-all duration-150 whitespace-nowrap active:scale-[0.98] ${
                 activeTab === 'jogos'
                   ? 'bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -295,22 +295,22 @@ export default function App() {
             <button
               type="button"
               onClick={() => setActiveTab('conferencia')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 min-h-[40px] rounded-lg text-xs font-bold transition-all duration-150 whitespace-nowrap active:scale-[0.98] ${
                 activeTab === 'conferencia'
                   ? 'bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <Trophy size={15} className="text-amber-500" />
-              <span>Conferência & Rateio</span>
+              <span>Conferência</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap self-stretch sm:self-auto">
             <button
               type="button"
               onClick={() => setIsAiStrategyOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-semibold text-xs rounded-xl shadow-xs transition-all duration-150 active:scale-[0.98]"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 min-h-[40px] bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-semibold text-xs rounded-xl shadow-xs transition-all duration-150 active:scale-[0.98]"
             >
               <Sparkles size={14} className="text-amber-400" />
               <span>Estratégia IA</span>
@@ -319,7 +319,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setIsPrintReportOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs rounded-xl transition-all duration-150 active:scale-[0.98]"
+              className="flex items-center justify-center gap-1.5 px-3 py-2 min-h-[40px] bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs rounded-xl transition-all duration-150 active:scale-[0.98]"
               title="Gerar extrato oficial em PDF/Impressão"
             >
               <Printer size={14} />
@@ -330,7 +330,7 @@ export default function App() {
               type="button"
               onClick={handleResetData}
               aria-label="Restaurar dados de teste"
-              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 rounded-lg transition-colors"
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl transition-colors"
               title="Restaurar dados de demonstração"
             >
               <RefreshCw size={14} />
@@ -342,10 +342,10 @@ export default function App() {
                 setPrefilledDezenas([]);
                 setIsVolanteOpen(true);
               }}
-              className="flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-xs py-2 px-3.5 rounded-xl shadow-xs transition-all duration-150 whitespace-nowrap"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-xs py-2 px-4 min-h-[40px] rounded-xl shadow-xs transition-all duration-150 whitespace-nowrap"
             >
               <PlusCircle size={15} />
-              <span>Novo Jogo (Volante / OCR)</span>
+              <span>Novo Jogo</span>
             </button>
           </div>
         </div>

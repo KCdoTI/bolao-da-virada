@@ -126,7 +126,7 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
               <button
                 type="button"
                 onClick={() => setIsOcrOpen(true)}
-                className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95 transition shadow-xs"
+                className="flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 min-h-[38px] rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white active:scale-[0.98] transition-all shadow-xs"
               >
                 <Camera size={14} />
                 <span>Ler Bilhete (OCR)</span>
@@ -135,9 +135,9 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
               <button
                 type="button"
                 onClick={handleSurpresinha}
-                className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition active:scale-95"
+                className="flex items-center gap-1 text-xs font-semibold px-3 py-2 min-h-[38px] rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-[0.98]"
               >
-                <Sparkles size={13} />
+                <Sparkles size={13} className="text-amber-500" />
                 <span>Surpresinha</span>
               </button>
 
@@ -145,16 +145,16 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
                 type="button"
                 onClick={() => setSelectedNumbers([])}
                 aria-label="Limpar dezenas"
-                className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg transition"
+                className="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-red-500 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                 title="Limpar seleção"
               >
-                <Trash2 size={15} />
+                <Trash2 size={16} />
               </button>
             </div>
           </div>
 
           {/* Grid dos 60 Números */}
-          <div className="p-4 overflow-y-auto max-h-[350px]">
+          <div className="p-4 overflow-y-auto max-h-[360px]">
             <div className="grid grid-cols-6 sm:grid-cols-10 gap-1.5 sm:gap-2">
               {Array.from({ length: 60 }, (_, i) => i + 1).map((num) => {
                 const isSelected = selectedNumbers.includes(num);
@@ -164,9 +164,9 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
                     type="button"
                     onClick={() => toggleNumber(num)}
                     aria-label={`Número ${num < 10 ? `0${num}` : num} ${isSelected ? 'selecionado' : ''}`}
-                    className={`h-10 sm:h-9 w-full text-sm font-bold rounded-lg transition-all flex items-center justify-center select-none active:scale-90 ${
+                    className={`h-11 sm:h-10 w-full text-sm font-bold font-mono rounded-xl transition-all flex items-center justify-center select-none active:scale-95 touch-manipulation ${
                       isSelected
-                        ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-500 scale-102'
+                        ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400 scale-[1.03]'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700'
                     }`}
                   >
@@ -187,7 +187,7 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
                   placeholder="https://... ou preenchido via OCR"
                   value={fotoUrl}
                   onChange={(e) => setFotoUrl(e.target.value)}
-                  className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full text-sm sm:text-xs px-3 py-2.5 min-h-[42px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
@@ -200,7 +200,7 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
                   placeholder="Ex: 8492-1049-5832-1920"
                   value={codigoBilhete}
                   onChange={(e) => setCodigoBilhete(e.target.value)}
-                  className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                  className="w-full text-sm sm:text-xs px-3 py-2.5 min-h-[42px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
                 />
               </div>
             </div>

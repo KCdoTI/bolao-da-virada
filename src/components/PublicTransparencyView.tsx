@@ -147,33 +147,33 @@ export const PublicTransparencyView: React.FC<PublicTransparencyViewProps> = ({
           </p>
 
           {/* Cards de Destaque para o Cotista */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2">
-            <div className="bg-slate-800/60 p-3.5 rounded-xl border border-slate-800">
-              <span className="text-slate-400 text-[11px] block font-medium">Valor da Cota</span>
-              <strong className="text-lg text-emerald-400 font-extrabold font-mono tabular-nums">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5 pt-2">
+            <div className="bg-slate-800/60 p-3.5 rounded-xl border border-slate-800 min-w-0">
+              <span className="text-slate-400 text-[11px] block font-medium uppercase tracking-wider">Valor da Cota</span>
+              <strong className="text-base sm:text-lg text-emerald-400 font-extrabold font-mono tabular-nums block mt-0.5 truncate">
                 R$ {bolao.valor_cota.toFixed(2)}
               </strong>
             </div>
 
-            <div className="bg-slate-800/60 p-3.5 rounded-xl border border-slate-800">
-              <span className="text-slate-400 text-[11px] block font-medium">Cotas Confirmadas</span>
-              <strong className="text-lg text-white font-extrabold font-mono tabular-nums">
+            <div className="bg-slate-800/60 p-3.5 rounded-xl border border-slate-800 min-w-0">
+              <span className="text-slate-400 text-[11px] block font-medium uppercase tracking-wider">Confirmadas</span>
+              <strong className="text-base sm:text-lg text-white font-extrabold font-mono tabular-nums block mt-0.5 truncate">
                 {cotasPagas}{' '}
                 <span className="text-xs text-slate-400 font-normal">/ {totalCotas}</span>
               </strong>
             </div>
 
-            <div className="bg-slate-800/60 p-3.5 rounded-xl border border-slate-800">
-              <span className="text-slate-400 text-[11px] block font-medium">Data Limite</span>
-              <strong className="text-xs text-slate-200 font-bold block mt-1">
+            <div className="bg-slate-800/60 p-3.5 rounded-xl border border-slate-800 min-w-0">
+              <span className="text-slate-400 text-[11px] block font-medium uppercase tracking-wider">Data Limite</span>
+              <strong className="text-xs sm:text-sm text-slate-200 font-bold block mt-1 truncate">
                 {dataFmt} {horaFmt}
               </strong>
             </div>
 
-            <div className="bg-slate-800/60 p-3.5 rounded-xl border border-slate-800 flex items-center justify-between">
-              <div className="min-w-0 pr-1">
-                <span className="text-slate-400 text-[11px] block font-medium">PIX do Bolão</span>
-                <span className="text-xs font-mono font-bold text-slate-200 truncate block">
+            <div className="bg-slate-800/60 p-3.5 rounded-xl border border-slate-800 flex items-center justify-between min-w-0">
+              <div className="min-w-0 pr-1.5">
+                <span className="text-slate-400 text-[11px] block font-medium uppercase tracking-wider">PIX do Bolão</span>
+                <span className="text-xs font-mono font-bold text-slate-200 truncate block mt-0.5">
                   {bolao.chave_pix_organizador}
                 </span>
               </div>
@@ -181,7 +181,7 @@ export const PublicTransparencyView: React.FC<PublicTransparencyViewProps> = ({
                 type="button"
                 onClick={copyPix}
                 aria-label="Copiar chave PIX"
-                className="p-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition active:scale-90 shrink-0"
+                className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-all duration-150 active:scale-95 shrink-0"
                 title="Copiar chave PIX"
               >
                 {pixCopied ? <Check size={16} /> : <Copy size={16} />}
