@@ -25,85 +25,93 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({
   const totalDezenas = jogos.reduce((acc, j) => acc + j.dezenas.length, 0);
 
   return (
-    <section aria-label="Resumo Financeiro do Bolão" className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5 mb-6">
+    <section aria-label="Resumo Financeiro do Bolão" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
       {/* 1. Total Arrecadado */}
-      <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl shadow-xs border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between min-w-0 transition-all duration-150 hover:border-slate-300 dark:hover:border-slate-700">
+      <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl shadow-xs border border-slate-200/90 dark:border-slate-800 flex flex-col justify-between min-w-0 transition-all duration-200 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md hover:-translate-y-0.5">
         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold">
-          <span className="text-[11px] uppercase tracking-wider font-semibold">Arrecadado</span>
-          <DollarSign size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <span className="text-xs uppercase tracking-wider font-bold">Arrecadado</span>
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20 shrink-0">
+            <DollarSign size={16} />
+          </div>
         </div>
-        <div className="my-2 min-w-0">
-          <div className="text-lg sm:text-xl lg:text-2xl font-extrabold text-emerald-700 dark:text-emerald-400 font-mono tabular-nums truncate">
+        <div className="my-3 min-w-0">
+          <div className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 font-mono tabular-nums truncate">
             R$ {totalArrecadado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-slate-400 mt-0.5 truncate">
+          <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
             Meta: R$ {metaPotencial.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>
-        <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+        <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden mt-1">
           <div
-            className="bg-emerald-600 h-full rounded-full transition-all duration-300"
+            className="bg-emerald-500 h-full rounded-full transition-all duration-300"
             style={{ width: `${percentualConfirmado}%` }}
           />
         </div>
       </div>
 
       {/* 2. Cotas Pagas */}
-      <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl shadow-xs border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between min-w-0 transition-all duration-150 hover:border-slate-300 dark:hover:border-slate-700">
+      <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl shadow-xs border border-slate-200/90 dark:border-slate-800 flex flex-col justify-between min-w-0 transition-all duration-200 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md hover:-translate-y-0.5">
         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold">
-          <span className="text-[11px] uppercase tracking-wider font-semibold">Cotas Pagas</span>
-          <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-        </div>
-        <div className="my-2 min-w-0">
-          <div className="text-lg sm:text-xl lg:text-2xl font-extrabold text-slate-900 dark:text-slate-100 font-mono tabular-nums truncate">
-            {cotasPagas}{' '}
-            <span className="text-xs font-normal text-slate-400">/ {totalCotas} cotas</span>
+          <span className="text-xs uppercase tracking-wider font-bold">Cotas Pagas</span>
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20 shrink-0">
+            <CheckCircle2 size={16} />
           </div>
-          <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5 truncate">
+        </div>
+        <div className="my-3 min-w-0">
+          <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 font-mono tabular-nums truncate">
+            {cotasPagas}{' '}
+            <span className="text-sm font-normal text-slate-400">/ {totalCotas} cotas</span>
+          </div>
+          <div className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-1 truncate">
             {percentualConfirmado}% do bolão quitado
           </div>
         </div>
-        <div className="text-[11px] text-slate-400 truncate">
+        <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
           R$ {bolao.valor_cota.toFixed(2)} por cota
         </div>
       </div>
 
       {/* 3. Cotas Pendentes */}
-      <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl shadow-xs border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between min-w-0 transition-all duration-150 hover:border-slate-300 dark:hover:border-slate-700">
+      <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl shadow-xs border border-slate-200/90 dark:border-slate-800 flex flex-col justify-between min-w-0 transition-all duration-200 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md hover:-translate-y-0.5">
         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold">
-          <span className="text-[11px] uppercase tracking-wider font-semibold">Pendentes</span>
-          <Clock size={15} className="text-amber-500 shrink-0" />
-        </div>
-        <div className="my-2 min-w-0">
-          <div className="text-lg sm:text-xl lg:text-2xl font-extrabold text-amber-600 dark:text-amber-400 font-mono tabular-nums truncate">
-            {cotasPendentes}{' '}
-            <span className="text-xs font-normal text-slate-400">cotas</span>
+          <span className="text-xs uppercase tracking-wider font-bold">Pendentes</span>
+          <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/20 shrink-0">
+            <Clock size={16} />
           </div>
-          <div className="text-[11px] text-slate-400 mt-0.5 truncate">
+        </div>
+        <div className="my-3 min-w-0">
+          <div className="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400 font-mono tabular-nums truncate">
+            {cotasPendentes}{' '}
+            <span className="text-sm font-normal text-slate-400">cotas</span>
+          </div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
             R$ {(cotasPendentes * bolao.valor_cota).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} a receber
           </div>
         </div>
-        <div className="text-[11px] text-amber-600/80 dark:text-amber-400/80 font-medium truncate">
-          {participantes.filter((p) => p.status_pagamento === 'Pendente').length} participantes
+        <div className="text-xs text-amber-600 dark:text-amber-400 font-semibold truncate">
+          {participantes.filter((p) => p.status_pagamento === 'Pendente').length} participantes pendentes
         </div>
       </div>
 
       {/* 4. Jogos Registrados */}
-      <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl shadow-xs border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between min-w-0 transition-all duration-150 hover:border-slate-300 dark:hover:border-slate-700">
+      <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl shadow-xs border border-slate-200/90 dark:border-slate-800 flex flex-col justify-between min-w-0 transition-all duration-200 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md hover:-translate-y-0.5">
         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold">
-          <span className="text-[11px] uppercase tracking-wider font-semibold">Jogos Lotérica</span>
-          <Ticket size={15} className="text-blue-500 shrink-0" />
-        </div>
-        <div className="my-2 min-w-0">
-          <div className="text-lg sm:text-xl lg:text-2xl font-extrabold text-slate-900 dark:text-slate-100 font-mono tabular-nums truncate">
-            {jogos.length}{' '}
-            <span className="text-xs font-normal text-slate-400">apostas</span>
+          <span className="text-xs uppercase tracking-wider font-bold">Jogos Lotérica</span>
+          <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-500/20 shrink-0">
+            <Ticket size={16} />
           </div>
-          <div className="text-[11px] text-slate-400 mt-0.5 truncate">
+        </div>
+        <div className="my-3 min-w-0">
+          <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 font-mono tabular-nums truncate">
+            {jogos.length}{' '}
+            <span className="text-sm font-normal text-slate-400">apostas</span>
+          </div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
             {totalDezenas} dezenas preenchidas
           </div>
         </div>
-        <div className="text-[11px] text-blue-600 dark:text-blue-400 font-medium truncate">
+        <div className="text-xs text-blue-600 dark:text-blue-400 font-medium truncate">
           Média: {jogos.length > 0 ? (totalDezenas / jogos.length).toFixed(1) : 0} dezenas/jogo
         </div>
       </div>

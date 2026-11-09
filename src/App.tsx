@@ -265,8 +265,8 @@ export default function App() {
         onToggleTheme={() => setDarkMode(!darkMode)}
       />
 
-      {/* Conteúdo Principal */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 -mt-8">
+      {/* Conteúdo Principal com Espaçamento Amplo e Arejado */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-16 space-y-6 sm:space-y-8">
         {/* Painel Financeiro (KPIs) */}
         <FinancialSummary
           bolao={bolao}
