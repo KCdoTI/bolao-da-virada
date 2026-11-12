@@ -1,6 +1,7 @@
-import React from 'react';
-import { X, Printer, ShieldCheck, Download, Calendar, DollarSign, Users, Ticket } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Printer, ShieldCheck, Download, Calendar, DollarSign, Users, Ticket, Copy, Check, FileCheck } from 'lucide-react';
 import { Bolao, Participante, Jogo } from '../types';
+import { generateCanonicalManifest, calculateSha256 } from '../utils/transparency';
 
 interface PrintReportModalProps {
   isOpen: boolean;
@@ -17,6 +18,23 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
   participantes,
   jogos,
 }) => {
+  const [sha256Hash, setSha256Hash] = useState<string>('Calculando...');
+  const [copiedHash, setCopiedHash] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const computeHash = async () => {
+      try {
+        const manifest = generateCanonicalManifest(bolao, participantes, jogos);
+        const hash = await calculateSha256(manifest);
+        setSha256Hash(hash);
+      } catch (err) {
+        setSha256Hash(`ERR-${bolao.hash_slug}`);
+      }
+    };
+    computeHash();
+  }, [isOpen, bolao, participantes, jogos]);
+
   if (!isOpen) return null;
 
   const cotasPagas = participantes
@@ -31,6 +49,12 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
     window.print();
   };
 
+  const handleCopyHash = () => {
+    navigator.clipboard.writeText(sha256Hash);
+    setCopiedHash(true);
+    setTimeout(() => setCopiedHash(false), 2000);
+  };
+
   return (
     <div
       role="dialog"
@@ -43,7 +67,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
         <div className="p-4 border-b border-slate-800 bg-slate-900 text-white flex items-center justify-between print:hidden">
           <div className="flex items-center gap-2">
             <Printer size={18} className="text-emerald-400" />
-            <h3 className="font-bold text-sm">Extrato Oficial de Prestação de Contas (PDF/Impressão)</h3>
+            <h3 className="font-bold text-sm">Extrato Oficial com Assinatura SHA-256 (PDF/Impressão)</h3>
           </div>
 
           <div className="flex items-center gap-2">
@@ -70,20 +94,46 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
           {/* Cabeçalho Oficial do Relatório */}
           <div className="border-b-2 border-slate-900 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <span className="text-xs font-black uppercase tracking-wider text-emerald-800">
-                RELATÓRIO OFICIAL DE TRANSPARÊNCIA E AUDITORIA
+              <span className="text-xs font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1">
+                <FileCheck size={14} className="text-emerald-700" />
+                <span>RELATÓRIO OFICIAL DE TRANSPARÊNCIA E AUDITORIA CRIPTOGRÁFICA</span>
               </span>
               <h1 className="text-2xl font-black text-slate-900 mt-1">{bolao.nome}</h1>
               <p className="text-xs text-slate-600 mt-0.5">
-                Modalidade: {bolao.modalidade} • Concurso #{bolao.concurso_numero} • Cota: R$ {bolao.valor_cota.toFixed(2)}
+                Modalidade: <strong>{bolao.modalidade}</strong> • Concurso <strong>#{bolao.concurso_numero}</strong> • Cota: <strong>R$ {bolao.valor_cota.toFixed(2)}</strong>
               </p>
             </div>
 
             <div className="text-left sm:text-right text-xs text-slate-500">
               <div>Emitido em: <strong>{dataEmissao}</strong></div>
+              <div>Organizador: <strong>{bolao.nome_organizador || 'Kelvin Castro'}</strong></div>
               <div>Chave PIX: <strong className="font-mono">{bolao.chave_pix_organizador}</strong></div>
-              <div>Hash de Auditoria: <span className="font-mono text-emerald-700 font-bold">{bolao.hash_slug}</span></div>
             </div>
+          </div>
+
+          {/* Selo Criptográfico SHA-256 */}
+          <div className="p-3.5 bg-slate-900 text-slate-100 rounded-xl border border-slate-800 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider flex items-center gap-1">
+                <ShieldCheck size={13} />
+                <span>Hash Criptográfico de Integridade (SHA-256)</span>
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyHash}
+                className="print:hidden text-[10px] text-slate-400 hover:text-white flex items-center gap-1"
+                title="Copiar Hash SHA-256"
+              >
+                {copiedHash ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                <span>{copiedHash ? 'Copiado!' : 'Copiar'}</span>
+              </button>
+            </div>
+            <div className="font-mono text-[11px] sm:text-xs text-emerald-300 break-all select-all font-semibold">
+              {sha256Hash}
+            </div>
+            <p className="text-[10px] text-slate-400 leading-tight">
+              Assinatura digital canônica inviolável. Qualquer alteração em bilhetes, dezenas ou participantes alterará este hash.
+            </p>
           </div>
 
           {/* Resumo Financeiro Consolidado */}
@@ -121,8 +171,8 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                   <tr>
                     <th className="py-2.5 px-3">Jogo #</th>
                     <th className="py-2.5 px-3">Dezenas Marcadas</th>
-                    <th className="py-2.5 px-3">Qtd</th>
-                    <th className="py-2.5 px-3">Código de Controle</th>
+                    <th className="py-2.5 px-3 text-center">Qtd</th>
+                    <th className="py-2.5 px-3">Código de Controle Caixa</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 font-mono">
@@ -132,8 +182,8 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                       <td className="py-2 px-3 font-bold text-emerald-800 text-sm">
                         {j.dezenas.map((d) => (d < 10 ? `0${d}` : d)).join(' - ')}
                       </td>
-                      <td className="py-2 px-3">{j.dezenas.length}</td>
-                      <td className="py-2 px-3 text-slate-500 text-[11px]">{j.codigo_bilhete || 'N/A'}</td>
+                      <td className="py-2 px-3 text-center">{j.dezenas.length}</td>
+                      <td className="py-2 px-3 text-slate-600 text-[11px]">{j.codigo_bilhete || 'N/A'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -187,10 +237,17 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
             </div>
           </div>
 
+          {/* Regras e Contingência */}
+          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
+            <strong className="text-slate-800 block text-xs">Regras e Política de Contingência:</strong>
+            <p>• Regra de Downgrade: {bolao.regra_downgrade === 'diminuir_dezenas' ? 'Reduzir dezenas da aposta principal em caso de inadimplência' : bolao.regra_downgrade === 'devolver_excedente' ? 'Devolver cotas excedentes' : 'Cortar apostas satélites de 6 dezenas mantendo o jogo principal intacto'}.</p>
+            <p>• O rateio de prêmios líquidos segue estritamente a proporção de cotas confirmadas até o encerramento das apostas.</p>
+          </div>
+
           {/* Rodapé de Autenticidade */}
           <div className="pt-4 border-t border-slate-200 text-center text-xs text-slate-400 space-y-1">
-            <p>Este extrato foi emitido eletronicamente pela plataforma Bolão da Virada para fins de transparência coletiva.</p>
-            <p className="font-mono text-[11px]">Assinatura digital de integridade: SHA256-BOLAO-{bolao.id.toUpperCase()}</p>
+            <p>Este extrato foi gerado eletronicamente com carimbo criptográfico SHA-256 para fins de transparência coletiva e auditoria entre participantes.</p>
+            <p className="font-mono text-[10px] text-slate-500">Assinatura Digital: {sha256Hash}</p>
           </div>
         </div>
       </div>

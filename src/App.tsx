@@ -9,6 +9,9 @@ import {
   RefreshCw,
   Printer,
   Brain,
+  Calculator,
+  Settings,
+  Building,
 } from 'lucide-react';
 import { Bolao, Participante, Jogo } from './types';
 import { mockBolao, mockParticipantes, mockJogos } from './mocks/initialData';
@@ -25,8 +28,9 @@ import { AiStrategyModal } from './components/AiStrategyModal';
 import { PrintReportModal } from './components/PrintReportModal';
 import { LegalFaqModal } from './components/LegalFaqModal';
 import { SimuladorPreBolaoModal } from './components/SimuladorPreBolaoModal';
+import { ConfigurarBolaoModal } from './components/ConfigurarBolaoModal';
+import { LotericasProximasModal } from './components/LotericasProximasModal';
 import { ToastContainer, ToastMessage } from './components/Toast';
-import { Calculator } from 'lucide-react';
 
 export default function App() {
   // Estado com persistência em LocalStorage
@@ -68,6 +72,7 @@ export default function App() {
 
   // Visão Ativa: 'organizador' vs 'publico' (Link de transparência do cotista)
   const [activeView, setActiveView] = useState<'organizador' | 'publico'>('organizador');
+  const [participantUrlToken, setParticipantUrlToken] = useState<string | null>(null);
 
   // Aba ativa no Painel do Organizador
   const [activeTab, setActiveTab] = useState<'participantes' | 'jogos' | 'conferencia'>('participantes');
@@ -79,6 +84,8 @@ export default function App() {
   const [isPrintReportOpen, setIsPrintReportOpen] = useState(false);
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [isSimuladorOpen, setIsSimuladorOpen] = useState(false);
+  const [isConfigurarBolaoOpen, setIsConfigurarBolaoOpen] = useState(false);
+  const [isLotericasOpen, setIsLotericasOpen] = useState(false);
 
   // Dezenas sugeridas pela IA para carregar no volante
   const [prefilledDezenas, setPrefilledDezenas] = useState<number[]>([]);
@@ -127,17 +134,40 @@ export default function App() {
     }
   }, [darkMode]);
 
-  // Verifica Hash na URL (ex: #b-virada-2026-x9k2) para carregar direto como participante
+  // Roteamento de Links Seguros via Hash ou Query Param
   useEffect(() => {
-    const handleHash = () => {
+    const handleUrlRoutes = () => {
       const hash = window.location.hash;
+      const params = new URLSearchParams(window.location.search);
+      const cotaParam = params.get('cota');
+      const adminParam = params.get('admin');
+
+      if (adminParam || hash.startsWith('#admin-')) {
+        setActiveView('organizador');
+        return;
+      }
+
+      if (cotaParam) {
+        setParticipantUrlToken(cotaParam);
+        setActiveView('publico');
+        return;
+      }
+
+      if (hash && hash.startsWith('#cota-')) {
+        const token = hash.replace('#cota-', '');
+        setParticipantUrlToken(token);
+        setActiveView('publico');
+        return;
+      }
+
       if (hash && (hash.startsWith('#b-') || hash.includes('participante') || hash.includes('/b/'))) {
         setActiveView('publico');
       }
     };
-    handleHash();
-    window.addEventListener('hashchange', handleHash);
-    return () => window.removeEventListener('hashchange', handleHash);
+
+    handleUrlRoutes();
+    window.addEventListener('hashchange', handleUrlRoutes);
+    return () => window.removeEventListener('hashchange', handleUrlRoutes);
   }, []);
 
   // Handlers de Participantes
@@ -162,6 +192,7 @@ export default function App() {
     const criado: Participante = {
       ...novo,
       id: `p-${Date.now()}`,
+      token_acesso: `cot_${Math.random().toString(36).substring(2, 9)}`,
     };
     setParticipantes((prev) => [criado, ...prev]);
     addToast('success', 'Participante adicionado!', `${criado.nome} cadastrado com ${criado.qtd_cotas} cota(s).`);
@@ -181,7 +212,9 @@ export default function App() {
       ...novo,
       id: `game-${Date.now()}`,
       criado_em: new Date().toISOString().split('T')[0],
-      codigo_bilhete: novo.codigo_bilhete || `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
+      codigo_bilhete:
+        novo.codigo_bilhete ||
+        `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
     };
     setJogos((prev) => [criado, ...prev]);
     setActiveTab('jogos');
@@ -210,12 +243,38 @@ export default function App() {
       data_limite: novoPrazoLimite,
     };
     setBolao(updated);
-    localStorage.setItem('bolao_da_virada_info', JSON.stringify(updated));
     addToast(
       'success',
       'Planejamento Aplicado',
       `Cota fixada em R$ ${novoValorCota.toFixed(2)} e prazo seguro atualizado.`
     );
+  };
+
+  // Aplica configuração completa do bolão (ex: Piloto de 7-8 pessoas a R$ 12)
+  const handleSalvarBolaoConfigurado = (novoBolao: Bolao, resetarDados: boolean) => {
+    setBolao(novoBolao);
+    if (resetarDados) {
+      const adminPart: Participante = {
+        id: `p-${Date.now()}`,
+        bolao_id: novoBolao.id,
+        nome: `${novoBolao.nome_organizador || 'Kelvin Castro'} (Organizador)`,
+        telefone: '(11) 98765-4321',
+        qtd_cotas: 1,
+        status_pagamento: 'Pago',
+        data_registro: new Date().toISOString().split('T')[0],
+        token_acesso: `cot_${Math.random().toString(36).substring(2, 9)}`,
+      };
+      setParticipantes([adminPart]);
+      setJogos([]);
+      setDezenasSorteadas([]);
+      addToast(
+        'success',
+        'Novo Bolão Iniciado!',
+        `Bolão "${novoBolao.nome}" configurado com cotas a R$ ${novoBolao.valor_cota.toFixed(2)}.`
+      );
+    } else {
+      addToast('success', 'Parâmetros Salvos!', 'Cotas, PIX e regras foram atualizados com sucesso.');
+    }
   };
 
   // Restaura dados de fábrica
@@ -238,6 +297,7 @@ export default function App() {
           participantes={participantes}
           jogos={jogos}
           dezenasSorteadas={dezenasSorteadas}
+          initialParticipantToken={participantUrlToken}
           onBackToDashboard={() => setActiveView('organizador')}
         />
         <ToastContainer toasts={toasts} onDismiss={removeToast} />
@@ -261,6 +321,8 @@ export default function App() {
         onOpenPrintReport={() => setIsPrintReportOpen(true)}
         onOpenLegalModal={() => setIsLegalModalOpen(true)}
         onOpenSimulador={() => setIsSimuladorOpen(true)}
+        onOpenConfigurarBolao={() => setIsConfigurarBolaoOpen(true)}
+        onOpenLotericas={() => setIsLotericasOpen(true)}
         darkMode={darkMode}
         onToggleTheme={() => setDarkMode(!darkMode)}
       />
@@ -289,7 +351,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setActiveTab('participantes')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 min-h-[40px] rounded-lg text-xs font-bold transition-all duration-150 whitespace-nowrap active:scale-[0.98] ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 min-h-[40px] rounded-lg text-xs font-bold transition-all duration-150 whitespace-nowrap active:scale-[0.98] cursor-pointer ${
                 activeTab === 'participantes'
                   ? 'bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -302,7 +364,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setActiveTab('jogos')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 min-h-[40px] rounded-lg text-xs font-bold transition-all duration-150 whitespace-nowrap active:scale-[0.98] ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 min-h-[40px] rounded-lg text-xs font-bold transition-all duration-150 whitespace-nowrap active:scale-[0.98] cursor-pointer ${
                 activeTab === 'jogos'
                   ? 'bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -315,7 +377,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setActiveTab('conferencia')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 min-h-[40px] rounded-lg text-xs font-bold transition-all duration-150 whitespace-nowrap active:scale-[0.98] ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 min-h-[40px] rounded-lg text-xs font-bold transition-all duration-150 whitespace-nowrap active:scale-[0.98] cursor-pointer ${
                 activeTab === 'conferencia'
                   ? 'bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -329,28 +391,48 @@ export default function App() {
           <div className="flex items-center gap-2 flex-wrap self-stretch sm:self-auto">
             <button
               type="button"
+              onClick={() => setIsConfigurarBolaoOpen(true)}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 min-h-[40px] bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-xs rounded-xl transition-all duration-150 active:scale-[0.98] cursor-pointer"
+              title="Configurar Cotas, PIX do Organizador e Regras"
+            >
+              <Settings size={14} />
+              <span>Configurar</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsLotericasOpen(true)}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 min-h-[40px] bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-blue-700 dark:text-blue-300 font-semibold text-xs rounded-xl transition-all duration-150 active:scale-[0.98] cursor-pointer"
+              title="Horários Oficiais e Lotéricas Próximas"
+            >
+              <Building size={14} className="text-blue-500" />
+              <span>Lotéricas</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setIsSimuladorOpen(true)}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 min-h-[40px] bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 font-semibold text-xs rounded-xl shadow-xs transition-all duration-150 active:scale-[0.98]"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 min-h-[40px] bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 font-semibold text-xs rounded-xl shadow-xs transition-all duration-150 active:scale-[0.98] cursor-pointer"
               title="Planejador Pré-Bolão e Simulação de Cenários"
             >
               <Calculator size={14} className="text-emerald-400" />
-              <span>Planejar Cenários</span>
+              <span className="hidden sm:inline">Planejador</span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsAiStrategyOpen(true)}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 min-h-[40px] bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-semibold text-xs rounded-xl shadow-xs transition-all duration-150 active:scale-[0.98]"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 min-h-[40px] bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-semibold text-xs rounded-xl shadow-xs transition-all duration-150 active:scale-[0.98] cursor-pointer"
             >
               <Sparkles size={14} className="text-amber-400" />
-              <span>Estratégia IA</span>
+              <span className="hidden sm:inline">Estratégia IA</span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsPrintReportOpen(true)}
-              className="flex items-center justify-center gap-1.5 px-3 py-2 min-h-[40px] bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs rounded-xl transition-all duration-150 active:scale-[0.98]"
-              title="Gerar extrato oficial em PDF/Impressão"
+              className="flex items-center justify-center gap-1.5 px-3 py-2 min-h-[40px] bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs rounded-xl transition-all duration-150 active:scale-[0.98] cursor-pointer"
+              title="Gerar extrato oficial com hash SHA-256"
             >
               <Printer size={14} />
               <span className="hidden sm:inline">Extrato</span>
@@ -360,7 +442,7 @@ export default function App() {
               type="button"
               onClick={handleResetData}
               aria-label="Restaurar dados de teste"
-              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl transition-colors"
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl transition-colors cursor-pointer"
               title="Restaurar dados de demonstração"
             >
               <RefreshCw size={14} />
@@ -372,7 +454,7 @@ export default function App() {
                 setPrefilledDezenas([]);
                 setIsVolanteOpen(true);
               }}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-xs py-2 px-4 min-h-[40px] rounded-xl shadow-xs transition-all duration-150 whitespace-nowrap"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-xs py-2 px-4 min-h-[40px] rounded-xl shadow-xs transition-all duration-150 whitespace-nowrap cursor-pointer"
             >
               <PlusCircle size={15} />
               <span>Novo Jogo</span>
@@ -458,6 +540,19 @@ export default function App() {
         onClose={() => setIsSimuladorOpen(false)}
         onAplicarParametros={handleAplicarParametrosPreBolao}
         valorCotaAtual={bolao.valor_cota}
+      />
+
+      <ConfigurarBolaoModal
+        isOpen={isConfigurarBolaoOpen}
+        onClose={() => setIsConfigurarBolaoOpen(false)}
+        bolaoAtual={bolao}
+        onSalvarBolao={handleSalvarBolaoConfigurado}
+      />
+
+      <LotericasProximasModal
+        isOpen={isLotericasOpen}
+        onClose={() => setIsLotericasOpen(false)}
+        dataSorteio={bolao.data_limite}
       />
 
       {/* Toasts */}

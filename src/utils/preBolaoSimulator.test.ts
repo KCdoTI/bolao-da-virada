@@ -10,13 +10,13 @@ import {
 
 test('TABELA_OFICIAL_CAIXA contains standard Caixa rules and costs', () => {
   assert.equal(TABELA_OFICIAL_CAIXA[0].dezenas, 6);
-  assert.equal(TABELA_OFICIAL_CAIXA[0].custo, 5.0);
+  assert.equal(TABELA_OFICIAL_CAIXA[0].custo, 6.0);
   assert.equal(TABELA_OFICIAL_CAIXA[1].dezenas, 7);
-  assert.equal(TABELA_OFICIAL_CAIXA[1].custo, 35.0);
+  assert.equal(TABELA_OFICIAL_CAIXA[1].custo, 42.0);
   assert.equal(TABELA_OFICIAL_CAIXA[2].dezenas, 8);
-  assert.equal(TABELA_OFICIAL_CAIXA[2].custo, 140.0);
+  assert.equal(TABELA_OFICIAL_CAIXA[2].custo, 168.0);
   assert.equal(TABELA_OFICIAL_CAIXA[3].dezenas, 9);
-  assert.equal(TABELA_OFICIAL_CAIXA[3].custo, 420.0);
+  assert.equal(TABELA_OFICIAL_CAIXA[3].custo, 504.0);
 });
 
 test('otimizarPlanoApostas allocates games without exceeding budget and minimizes change', () => {
@@ -24,7 +24,7 @@ test('otimizarPlanoApostas allocates games without exceeding budget and minimize
   const plano = otimizarPlanoApostas(orcamento, 'Hibrida');
 
   assert.ok(plano.custoTotal <= orcamento);
-  assert.ok(plano.sobraTroco < 5.0, 'Sobra de troco deve ser menor que o preço de uma aposta simples');
+  assert.ok(plano.sobraTroco < 6.0, 'Sobra de troco deve ser menor que o preço de uma aposta simples');
   assert.ok(plano.jogos.length > 0);
   assert.ok(plano.totalApostasEquivalentes >= 28);
 });

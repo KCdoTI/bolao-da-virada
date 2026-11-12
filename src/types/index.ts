@@ -1,6 +1,9 @@
 export type StatusBolao = 'aberto' | 'encerrado' | 'sorteado';
 export type StatusPagamento = 'Pendente' | 'Pago';
 
+export type RegraDowngrade = 'cortar_satelites' | 'diminuir_dezenas' | 'devolver_excedente';
+export type TipoChavePix = 'cpf' | 'cnpj' | 'email' | 'telefone' | 'aleatoria';
+
 export interface Bolao {
   id: string;
   nome: string;
@@ -9,6 +12,12 @@ export interface Bolao {
   valor_cota: number;
   data_limite: string;
   chave_pix_organizador: string;
+  nome_organizador?: string;
+  tipo_chave_pix?: TipoChavePix;
+  admin_token?: string;
+  regra_downgrade?: RegraDowngrade;
+  horario_limite_loterica?: string;
+  cidade_loterica?: string;
   status: StatusBolao;
   dezenas_sorteadas?: number[];
   hash_slug: string;
@@ -23,6 +32,7 @@ export interface Participante {
   qtd_cotas: number;
   status_pagamento: StatusPagamento;
   data_registro?: string;
+  token_acesso?: string;
 }
 
 export interface Jogo {

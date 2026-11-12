@@ -9,17 +9,19 @@ export interface CustoApostaCaixa {
   apostasEquivalentes: number;
 }
 
+export const VALOR_APOSTA_SIMPLES = 6.0;
+
 export const TABELA_OFICIAL_CAIXA: CustoApostaCaixa[] = [
-  { dezenas: 6, custo: 5.0, apostasEquivalentes: 1 },
-  { dezenas: 7, custo: 35.0, apostasEquivalentes: 7 },
-  { dezenas: 8, custo: 140.0, apostasEquivalentes: 28 },
-  { dezenas: 9, custo: 420.0, apostasEquivalentes: 84 },
-  { dezenas: 10, custo: 1050.0, apostasEquivalentes: 210 },
-  { dezenas: 11, custo: 2310.0, apostasEquivalentes: 462 },
-  { dezenas: 12, custo: 4620.0, apostasEquivalentes: 924 },
-  { dezenas: 13, custo: 8580.0, apostasEquivalentes: 1716 },
-  { dezenas: 14, custo: 15015.0, apostasEquivalentes: 3003 },
-  { dezenas: 15, custo: 25025.0, apostasEquivalentes: 5005 },
+  { dezenas: 6, custo: 6.0, apostasEquivalentes: 1 },
+  { dezenas: 7, custo: 42.0, apostasEquivalentes: 7 },
+  { dezenas: 8, custo: 168.0, apostasEquivalentes: 28 },
+  { dezenas: 9, custo: 504.0, apostasEquivalentes: 84 },
+  { dezenas: 10, custo: 1260.0, apostasEquivalentes: 210 },
+  { dezenas: 11, custo: 2772.0, apostasEquivalentes: 462 },
+  { dezenas: 12, custo: 5544.0, apostasEquivalentes: 924 },
+  { dezenas: 13, custo: 10296.0, apostasEquivalentes: 1716 },
+  { dezenas: 14, custo: 18018.0, apostasEquivalentes: 3003 },
+  { dezenas: 15, custo: 30030.0, apostasEquivalentes: 5005 },
 ];
 
 export interface AlocacaoJogo {
@@ -86,7 +88,7 @@ export function otimizarPlanoApostas(
   orcamento: number,
   estrategia: 'Hibrida' | 'Desdobramento' | 'Volume' = 'Hibrida'
 ): PlanoApostas {
-  if (orcamento < 5.0) {
+  if (orcamento < VALOR_APOSTA_SIMPLES) {
     return {
       orcamentoDisponivel: orcamento,
       custoTotal: 0,
@@ -94,7 +96,7 @@ export function otimizarPlanoApostas(
       totalApostasEquivalentes: 0,
       jogos: [],
       estrategiaNome: estrategia,
-      resumoVisual: 'Orçamento insuficiente para aposta mínima da Caixa (mínimo R$ 5,00)',
+      resumoVisual: `Orçamento insuficiente para aposta mínima da Caixa (mínimo R$ ${VALOR_APOSTA_SIMPLES.toFixed(2)})`,
     };
   }
 
@@ -103,9 +105,9 @@ export function otimizarPlanoApostas(
 
   if (estrategia === 'Volume') {
     // Foca em apostas simples de 6 dezenas e poucas de 7 para máxima diversidade
-    const qtdSimples = Math.floor(saldo / 5.0);
+    const qtdSimples = Math.floor(saldo / VALOR_APOSTA_SIMPLES);
     alocacoes.set(6, qtdSimples);
-    saldo -= qtdSimples * 5.0;
+    saldo -= qtdSimples * VALOR_APOSTA_SIMPLES;
   } else if (estrategia === 'Desdobramento') {
     // Aloca o maior número possível em apostas desdobradas (10, 9, 8, 7)
     for (let i = TABELA_OFICIAL_CAIXA.length - 1; i >= 0; i--) {
@@ -120,7 +122,7 @@ export function otimizarPlanoApostas(
     // Híbrida (Recomendada):
     // 1. Tenta comprar 1 aposta do maior desdobramento viável (até 9 ou 10 dezenas)
     // 2. Com o saldo restante, compra apostas de 8 ou 7 dezenas
-    // 3. O saldo final vira apostas de 6 dezenas (R$ 5)
+    // 3. O saldo final vira apostas de 6 dezenas (R$ 6,00)
     for (let i = TABELA_OFICIAL_CAIXA.length - 1; i >= 1; i--) {
       const item = TABELA_OFICIAL_CAIXA[i];
       // Só compra se sobrar pelo menos 15% para jogos complementares ou se esgotar redondo

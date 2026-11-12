@@ -112,6 +112,7 @@ test('buildWhatsAppReminderGroupMessage formats reminder with pending counts and
     data_limite: '2026-12-31T17:00:00',
     chave_pix_organizador: 'organizador@pix.com',
     status: 'aberto',
+    hash_slug: 'b-test-hash',
   };
   const pendentes: Participante[] = [
     { id: '1', bolao_id: 'b-test', nome: 'Fernanda', telefone: '(31) 98456-7890', qtd_cotas: 2, status_pagamento: 'Pendente' },

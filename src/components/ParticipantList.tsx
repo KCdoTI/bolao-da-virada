@@ -10,11 +10,16 @@ import {
   Filter,
   BellRing,
   MessageCircle,
+  Copy,
+  Check,
+  Link,
+  Share2,
 } from 'lucide-react';
 import { Participante, Bolao } from '../types';
 import { AlertarPendentesModal } from './AlertarPendentesModal';
 import {
   buildWhatsAppIndividualReminderMessage,
+  buildWhatsAppIndividualParticipantLinkMessage,
   buildWhatsAppDirectUrl,
 } from '../utils/transparency';
 
@@ -36,12 +41,22 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
   const [search, setSearch] = useState('');
   const [filtroStatus, setFiltroStatus] = useState<'todos' | 'Pago' | 'Pendente'>('todos');
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const pendentes = participantes.filter((p) => p.status_pagamento === 'Pendente');
 
   const publicUrl = typeof window !== 'undefined'
     ? `${window.location.origin}${window.location.pathname}#${bolao.id}`
     : `https://bolao-da-virada.app/#${bolao.id}`;
+
+  const copyParticipantLink = (p: Participante) => {
+    const personalUrl = typeof window !== 'undefined'
+      ? `${window.location.origin}/#cota-${p.token_acesso || p.id}`
+      : `/#cota-${p.token_acesso || p.id}`;
+    navigator.clipboard.writeText(personalUrl);
+    setCopiedId(p.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const filtered = participantes.filter((p) => {
     const matchesSearch =
@@ -186,29 +201,42 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
                       )}
                     </button>
 
-                    {/* Cobrança Rápida WhatsApp se Pendente */}
-                    {!isPago && (
-                      <a
-                        href={buildWhatsAppDirectUrl(
-                          participante.telefone,
-                          buildWhatsAppIndividualReminderMessage(participante, bolao, publicUrl)
-                        )}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={`Cobrar ${participante.nome} no WhatsApp`}
-                        aria-label={`Enviar cobrança no WhatsApp para ${participante.nome}`}
-                        className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-emerald-600 dark:text-emerald-400 hover:text-white rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 dark:hover:bg-emerald-600 border border-emerald-200 dark:border-emerald-800/80 active:scale-[0.95] transition-all duration-150"
-                      >
-                        <MessageCircle size={16} />
-                      </a>
-                    )}
+                    {/* Copiar Link Individual do Cotista */}
+                    <button
+                      type="button"
+                      onClick={() => copyParticipantLink(participante)}
+                      aria-label={`Copiar link exclusivo de ${participante.nome}`}
+                      title={copiedId === participante.id ? 'Link pessoal copiado!' : `Copiar link exclusivo para ${participante.nome}`}
+                      className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-500 hover:text-emerald-500 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-slate-200 dark:border-slate-700 active:scale-[0.95] transition-all duration-150 cursor-pointer"
+                    >
+                      {copiedId === participante.id ? <Check size={16} className="text-emerald-500" /> : <Link size={15} />}
+                    </button>
+
+                    {/* Enviar Link / Cobrança via WhatsApp */}
+                    <a
+                      href={buildWhatsAppDirectUrl(
+                        participante.telefone,
+                        buildWhatsAppIndividualParticipantLinkMessage(
+                          participante,
+                          bolao,
+                          `${typeof window !== 'undefined' ? window.location.origin : ''}/#cota-${participante.token_acesso || participante.id}`
+                        )
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={`Enviar link seguro para ${participante.nome} no WhatsApp`}
+                      aria-label={`Enviar link no WhatsApp para ${participante.nome}`}
+                      className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-emerald-600 dark:text-emerald-400 hover:text-white rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 dark:hover:bg-emerald-600 border border-emerald-200 dark:border-emerald-800/80 active:scale-[0.95] transition-all duration-150 cursor-pointer"
+                    >
+                      <MessageCircle size={16} />
+                    </a>
 
                     {/* Excluir Participante (Touch Target 40x40) */}
                     <button
                       type="button"
                       onClick={() => onRemoveParticipante(participante.id)}
                       aria-label={`Remover ${participante.nome}`}
-                      className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-red-500 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 active:scale-[0.95] transition-all duration-150"
+                      className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-red-500 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 active:scale-[0.95] transition-all duration-150 cursor-pointer"
                       title="Remover participante"
                     >
                       <Trash2 size={16} />

@@ -13,6 +13,8 @@ import {
   Printer,
   Scale,
   Calculator,
+  Settings,
+  Building,
 } from 'lucide-react';
 import { Bolao } from '../types';
 import { BrandLogo } from './BrandLogo';
@@ -26,6 +28,8 @@ interface DashboardHeaderProps {
   onOpenPrintReport: () => void;
   onOpenLegalModal: () => void;
   onOpenSimulador?: () => void;
+  onOpenConfigurarBolao?: () => void;
+  onOpenLotericas?: () => void;
   darkMode: boolean;
   onToggleTheme: () => void;
 }
@@ -39,6 +43,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onOpenPrintReport,
   onOpenLegalModal,
   onOpenSimulador,
+  onOpenConfigurarBolao,
+  onOpenLotericas,
   darkMode,
   onToggleTheme,
 }) => {
@@ -125,10 +131,34 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                   <span>Consultor IA</span>
                 </button>
 
+                {onOpenLotericas && (
+                  <button
+                    type="button"
+                    onClick={onOpenLotericas}
+                    className="hidden lg:flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl bg-slate-800/80 hover:bg-slate-800 text-blue-300 border border-slate-700/60 text-xs font-semibold transition-all duration-150 active:scale-[0.98] cursor-pointer"
+                    title="Horários da Caixa e Lotéricas Próximas"
+                  >
+                    <Building size={15} className="text-blue-400" />
+                    <span>Lotéricas</span>
+                  </button>
+                )}
+
+                {onOpenConfigurarBolao && (
+                  <button
+                    type="button"
+                    onClick={onOpenConfigurarBolao}
+                    className="hidden sm:flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-700/60 text-xs font-semibold transition-all duration-150 active:scale-[0.98] cursor-pointer"
+                    title="Configurar Cotas, Chave PIX e Regras"
+                  >
+                    <Settings size={15} />
+                    <span>Configurar</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={onOpenLegalModal}
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/60 text-xs font-semibold transition-all duration-150 active:scale-[0.98]"
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/60 text-xs font-semibold transition-all duration-150 active:scale-[0.98] cursor-pointer"
                   title="Regras, Licenciamento e Instalação PWA"
                 >
                   <Scale size={15} />
