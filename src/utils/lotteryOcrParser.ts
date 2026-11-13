@@ -61,13 +61,44 @@ export async function preprocessTicketImage(file: File): Promise<string> {
 }
 
 /**
- * Parser focado no layout de comprovantes da Caixa:
+ * Parser focado no layout de comprovantes térmicos da Caixa:
  * 1. Remove linhas de cabeçalho, datas, valores e identificadores.
- * 2. Trata substituições comuns de OCR em fontes térmicas.
- * 3. Encontra agrupamentos contínuos de 6 a 15 dezenas (entre 01 e 60).
+ * 2. Trata substituições comuns de OCR em fontes térmicas (0/O, 1/I, 5/S, 8/B).
+ * 3. Detecta automaticamente ou via parâmetro a modalidade:
+ *    - Lotofácil (1 a 25; 15 a 20 dezenas)
+ *    - Quina (1 a 80; 5 a 15 dezenas)
+ *    - Dupla Sena (1 a 50; 6 a 15 dezenas)
+ *    - Mega-Sena (1 a 60; 6 a 15 dezenas)
  */
-export function parseCaixaTicketText(ocrText: string): ExtractedGameCandidate[] {
+export function parseCaixaTicketText(
+  ocrText: string,
+  modalidadePreferida?: string
+): ExtractedGameCandidate[] {
   if (!ocrText) return [];
+
+  const upperAll = ocrText.toUpperCase();
+  let maxNumber = 60;
+  let minDezenas = 6;
+  let maxDezenas = 15;
+
+  const mod = (modalidadePreferida || '').toLowerCase();
+  const isLoto = mod.includes('lotofácil') || mod.includes('lotofacil') || upperAll.includes('LOTOFACIL') || upperAll.includes('LOTOFÁCIL');
+  const isQuina = mod.includes('quina') || upperAll.includes('QUINA');
+  const isDupla = mod.includes('dupla') || upperAll.includes('DUPLA SENA');
+
+  if (isLoto) {
+    maxNumber = 25;
+    minDezenas = 15;
+    maxDezenas = 20;
+  } else if (isQuina) {
+    maxNumber = 80;
+    minDezenas = 5;
+    maxDezenas = 15;
+  } else if (isDupla) {
+    maxNumber = 50;
+    minDezenas = 6;
+    maxDezenas = 15;
+  }
 
   const lines = ocrText.split('\n');
   const candidates: ExtractedGameCandidate[] = [];
@@ -81,15 +112,20 @@ export function parseCaixaTicketText(ocrText: string): ExtractedGameCandidate[] 
 
   for (const rawLine of lines) {
     const trimmed = rawLine.trim();
-    if (!trimmed || trimmed.length < 10) continue;
+    if (!trimmed || trimmed.length < 8) continue;
 
     const upper = trimmed.toUpperCase();
     if (blacklist.some((term) => upper.includes(term))) {
       continue;
     }
 
+    // Remove prefixos de bilhete como "JOGO 01:", "JOGO 1", "A - ", etc.
+    const semPrefixo = upper
+      .replace(/^JOGO\s*\d+\s*[:\-]?\s*/i, '')
+      .replace(/^[A-Z]\s*[-:]\s*/i, '');
+
     // Normaliza potenciais confusões do OCR em fontes pontilhadas térmicas
-    const normalized = upper
+    const normalized = semPrefixo
       .replace(/[Oo]/g, '0')
       .replace(/[Il|]/g, '1')
       .replace(/[Ss]/g, '5')
@@ -101,25 +137,24 @@ export function parseCaixaTicketText(ocrText: string): ExtractedGameCandidate[] 
     if (matches) {
       const numbers = matches
         .map((n) => parseInt(n, 10))
-        .filter((n) => n >= 1 && n <= 60);
+        .filter((n) => n >= 1 && n <= maxNumber);
 
       const uniqueSorted = Array.from(new Set(numbers)).sort((a, b) => a - b);
 
-      if (uniqueSorted.length >= 6 && uniqueSorted.length <= 15) {
+      if (uniqueSorted.length >= minDezenas && uniqueSorted.length <= maxDezenas) {
         candidates.push({
           rawLine: trimmed,
           dezenas: uniqueSorted,
-          confianca: uniqueSorted.length === 6 ? 'alta' : 'media',
-          descricao: `Sequência de ${uniqueSorted.length} dezenas detectada`,
+          confianca: uniqueSorted.length === minDezenas ? 'alta' : 'media',
+          descricao: `Sequência de ${uniqueSorted.length} dezenas detectada (${isLoto ? 'Lotofácil' : isQuina ? 'Quina' : isDupla ? 'Dupla Sena' : 'Mega-Sena'})`,
         });
       }
     }
   }
 
-  // Se nenhuma linha isolada continha as 6 dezenas, tenta varrer todo o texto coletivo
+  // Se nenhuma linha isolada continha o bloco completo (comum na Lotofácil com múltiplas linhas)
   if (candidates.length === 0) {
-    const cleanAll = ocrText
-      .toUpperCase()
+    const cleanAll = upperAll
       .replace(/[Oo]/g, '0')
       .replace(/[Il|]/g, '1')
       .replace(/[,;.\-_/:]/g, ' ');
@@ -128,11 +163,11 @@ export function parseCaixaTicketText(ocrText: string): ExtractedGameCandidate[] 
     if (allMatches) {
       const allNumbers = allMatches
         .map((n) => parseInt(n, 10))
-        .filter((n) => n >= 1 && n <= 60);
+        .filter((n) => n >= 1 && n <= maxNumber);
       const unique = Array.from(new Set(allNumbers)).sort((a, b) => a - b);
 
-      if (unique.length >= 6) {
-        const slice = unique.slice(0, Math.min(15, unique.length));
+      if (unique.length >= minDezenas) {
+        const slice = unique.slice(0, Math.min(maxDezenas, unique.length));
         candidates.push({
           rawLine: 'Dezenas consolidadas do bilhete',
           dezenas: slice,
@@ -160,7 +195,7 @@ MEGA DA VIRADA - CONCURSO 2810
 DATA: 31/12/2026 14:22:10
 JOGO 01
 05  10  18  34  42  59
-VALOR DA APOSTA: R$ 5,00
+VALOR DA APOSTA: R$ 6,00
 CONTROLE: 8492-1049-5832-1920
 TERMINAL: 04.912.842-1
     `.trim(),
@@ -174,21 +209,35 @@ LOTERICA TREVO VERDE
 CONCURSO 2810 - MEGA DA VIRADA
 DATA APURACAO 31/12/2026
 A - 03  10  18  34  42  55  60
-VALOR R$ 35,00
+VALOR R$ 42,00
 AUTENTICACAO 9921-4820-1102
     `.trim(),
     dezenasEsperadas: [3, 10, 18, 34, 42, 55, 60],
   },
   {
-    nome: 'Bilhete 03 - Aposta Especial (8 dezenas)',
+    nome: 'Bilhete 03 - Lotofácil da Independência (15 dezenas)',
     rawText: `
-LOTERIAS CAIXA
-AGENCIA CENTRAL
-MEGA DA VIRADA 2810
-JOGO APOSTA MULTIPLA
-05 10 18 25 34 42 51 59
-VALOR R$ 140,00
+CAIXA ECONOMICA FEDERAL
+LOTERIAS CAIXA - LOTOFACIL
+CONCURSO 3200 - INDEPENDENCIA
+01  03  05  07  09
+11  13  15  17  19
+21  22  23  24  25
+VALOR DA APOSTA R$ 3,50
+CONTROLE: 1204-9843-1123-5590
     `.trim(),
-    dezenasEsperadas: [5, 10, 18, 25, 34, 42, 51, 59],
+    dezenasEsperadas: [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 22, 23, 24, 25],
+  },
+  {
+    nome: 'Bilhete 04 - Quina de São João (5 dezenas)',
+    rawText: `
+CAIXA ECONOMICA FEDERAL
+LOTERICA PRACINHA DA SORTE
+QUINA DE SAO JOAO - CONCURSO 6500
+JOGO 01: 12  28  45  67  79
+VALOR DA APOSTA: R$ 3,00
+CONTROLE: 5541-8891-3321-1200
+    `.trim(),
+    dezenasEsperadas: [12, 28, 45, 67, 79],
   }
 ];

@@ -19,6 +19,7 @@ import { conferirJogo, calcularRateio } from '../utils/lotteryEngine';
 import { fetchMegaSenaDraw } from '../services/caixaLotteryService';
 import { buildWhatsAppPayoutMessage } from '../utils/transparency';
 import { TicketViewerModal } from './TicketViewerModal';
+import { getModalidadeInfo } from '../constants/lotteryCatalog';
 
 interface PainelConferenciaProps {
   bolaoNome: string;
@@ -28,6 +29,7 @@ interface PainelConferenciaProps {
   participantes: Participante[];
   dezenasSorteadas: number[];
   onUpdateDezenasSorteadas: (dezenas: number[]) => void;
+  modalidade?: string;
 }
 
 export const PainelConferencia: React.FC<PainelConferenciaProps> = ({
@@ -38,6 +40,7 @@ export const PainelConferencia: React.FC<PainelConferenciaProps> = ({
   participantes,
   dezenasSorteadas,
   onUpdateDezenasSorteadas,
+  modalidade = 'Mega-Sena',
 }) => {
   const [modoManual, setModoManual] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -92,12 +95,22 @@ export const PainelConferencia: React.FC<PainelConferenciaProps> = ({
     onUpdateDezenasSorteadas(novas);
   };
 
-  // Motor de Conferência com cálculo combinatório
-  const jogosConferidos = jogos.map((j) => conferirJogo(j, dezenasSorteadas, premios));
+  // Motor de Conferência com cálculo combinatório multi-loterias
+  const jogosConferidos = jogos.map((j) => conferirJogo(j, dezenasSorteadas, premios, modalidade));
 
-  const totalSenas = jogosConferidos.reduce((acc, j) => acc + j.premiacaoCalculada.senas, 0);
-  const totalQuinas = jogosConferidos.reduce((acc, j) => acc + j.premiacaoCalculada.quinas, 0);
-  const totalQuadras = jogosConferidos.reduce((acc, j) => acc + j.premiacaoCalculada.quadras, 0);
+  const isLoto = modalidade.toLowerCase().includes('lotofácil') || modalidade.toLowerCase().includes('lotofacil');
+  const isQuina = modalidade.toLowerCase().includes('quina');
+
+  const totalSenas = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.senas || 0), 0);
+  const totalQuinas = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.quinas || 0), 0);
+  const totalQuadras = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.quadras || 0), 0);
+  const totalTernos = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.ternos || 0), 0);
+  const totalDuques = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.duques || 0), 0);
+  const totalP15 = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.pontos15 || 0), 0);
+  const totalP14 = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.pontos14 || 0), 0);
+  const totalP13 = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.pontos13 || 0), 0);
+  const totalP12 = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.pontos12 || 0), 0);
+  const totalP11 = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.pontos11 || 0), 0);
   const totalPremioBolao = jogosConferidos.reduce(
     (acc, j) => acc + j.premiacaoCalculada.valorTotal,
     0
@@ -251,56 +264,161 @@ export const PainelConferencia: React.FC<PainelConferenciaProps> = ({
           )}
         </div>
 
-        {/* Senas */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-            <span>Senas (6 acertos)</span>
-            <Sparkles size={16} className="text-amber-500" />
-          </div>
-          <div className="my-2">
-            <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
-              {totalSenas}
+        {/* Faixas Dinâmicas de Premiação Multi-Loterias */}
+        {isLoto ? (
+          <>
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <span>15 Pontos (Máximo)</span>
+                <Sparkles size={16} className="text-amber-500" />
+              </div>
+              <div className="my-2">
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
+                  {totalP15}
+                </div>
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
+                  R$ {(premios.pontos15 || 1500000).toLocaleString('pt-BR')} estimado
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-400">Faixa principal da Lotofácil</span>
             </div>
-            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
-              R$ {premios.sena.toLocaleString('pt-BR')} cada
-            </span>
-          </div>
-          <span className="text-[11px] text-slate-400">Prêmio principal da Virada</span>
-        </div>
 
-        {/* Quinas */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-            <span>Quinas (5 acertos)</span>
-            <CheckCircle2 size={16} className="text-blue-500" />
-          </div>
-          <div className="my-2">
-            <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
-              {totalQuinas}
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <span>14 Pontos</span>
+                <CheckCircle2 size={16} className="text-blue-500" />
+              </div>
+              <div className="my-2">
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
+                  {totalP14}
+                </div>
+                <span className="text-xs text-blue-600 dark:text-blue-400 font-bold block mt-0.5">
+                  R$ {(premios.pontos14 || 1500).toLocaleString('pt-BR')} estimado
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-400">Segunda faixa da Lotofácil</span>
             </div>
-            <span className="text-xs text-blue-600 dark:text-blue-400 font-bold block mt-0.5">
-              R$ {premios.quina.toLocaleString('pt-BR')} cada
-            </span>
-          </div>
-          <span className="text-[11px] text-slate-400">Inclui múltiplos de desdobramento</span>
-        </div>
 
-        {/* Quadras */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-            <span>Quadras (4 acertos)</span>
-            <CheckCircle2 size={16} className="text-emerald-500" />
-          </div>
-          <div className="my-2">
-            <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
-              {totalQuadras}
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <span>11 a 13 Pontos (Fixos)</span>
+                <CheckCircle2 size={16} className="text-emerald-500" />
+              </div>
+              <div className="my-2">
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
+                  {totalP13 + totalP12 + totalP11}
+                </div>
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
+                  R$ 7, R$ 13 e R$ 32 fixos
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-400">Prêmios de recuperação garantidos</span>
             </div>
-            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
-              R$ {premios.quadra.toLocaleString('pt-BR')} cada
-            </span>
-          </div>
-          <span className="text-[11px] text-slate-400">Inclui múltiplos de desdobramento</span>
-        </div>
+          </>
+        ) : isQuina ? (
+          <>
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <span>Quina (5 acertos)</span>
+                <Sparkles size={16} className="text-amber-500" />
+              </div>
+              <div className="my-2">
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
+                  {totalQuinas}
+                </div>
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
+                  R$ {(premios.quina || 20000000).toLocaleString('pt-BR')} cada
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-400">Prêmio principal da Quina</span>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <span>Quadra (4 acertos)</span>
+                <CheckCircle2 size={16} className="text-blue-500" />
+              </div>
+              <div className="my-2">
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
+                  {totalQuadras}
+                </div>
+                <span className="text-xs text-blue-600 dark:text-blue-400 font-bold block mt-0.5">
+                  R$ {(premios.quadra || 8000).toLocaleString('pt-BR')} cada
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-400">Segunda faixa da Quina</span>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <span>Ternos e Duques</span>
+                <CheckCircle2 size={16} className="text-emerald-500" />
+              </div>
+              <div className="my-2">
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
+                  {totalTernos + totalDuques}
+                </div>
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
+                  {totalTernos} ternos / {totalDuques} duques
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-400">Inclui múltiplos de desdobramento</span>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Senas */}
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <span>Senas (6 acertos)</span>
+                <Sparkles size={16} className="text-amber-500" />
+              </div>
+              <div className="my-2">
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
+                  {totalSenas}
+                </div>
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
+                  R$ {(premios.sena || 0).toLocaleString('pt-BR')} cada
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-400">Prêmio principal da Mega</span>
+            </div>
+
+            {/* Quinas */}
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <span>Quinas (5 acertos)</span>
+                <CheckCircle2 size={16} className="text-blue-500" />
+              </div>
+              <div className="my-2">
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
+                  {totalQuinas}
+                </div>
+                <span className="text-xs text-blue-600 dark:text-blue-400 font-bold block mt-0.5">
+                  R$ {(premios.quina || 0).toLocaleString('pt-BR')} cada
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-400">Inclui múltiplos de desdobramento</span>
+            </div>
+
+            {/* Quadras */}
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <span>Quadras (4 acertos)</span>
+                <CheckCircle2 size={16} className="text-emerald-500" />
+              </div>
+              <div className="my-2">
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
+                  {totalQuadras}
+                </div>
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
+                  R$ {(premios.quadra || 0).toLocaleString('pt-BR')} cada
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-400">Inclui múltiplos de desdobramento</span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Lista de Jogos Conferidos com Destaque Visual */}

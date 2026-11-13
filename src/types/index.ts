@@ -54,10 +54,43 @@ export interface Jogo {
   codigo_bilhete?: string;
 }
 
+export interface DetalheFaixaPremiacao {
+  faixaNome: string;
+  acertosNecessarios: number;
+  qtdPremios: number;
+  valorUnitario: number;
+  subtotal: number;
+}
+
 export interface PremiacaoFaixas {
-  sena: number;
-  quina: number;
-  quadra: number;
+  // Mega-Sena & Dupla Sena:
+  sena?: number;
+  quina?: number;
+  quadra?: number;
+  // Quina / Dupla Sena:
+  terno?: number;
+  duque?: number;
+  // Lotofácil:
+  pontos15?: number;
+  pontos14?: number;
+  pontos13?: number;
+  pontos12?: number;
+  pontos11?: number;
+}
+
+export interface PremiacaoCalculadaUniversal {
+  senas: number;
+  quinas: number;
+  quadras: number;
+  ternos?: number;
+  duques?: number;
+  pontos15?: number;
+  pontos14?: number;
+  pontos13?: number;
+  pontos12?: number;
+  pontos11?: number;
+  detalhesFaixas?: DetalheFaixaPremiacao[];
+  valorTotal: number;
 }
 
 export interface JogoConferido {
@@ -65,12 +98,7 @@ export interface JogoConferido {
   dezenas: number[];
   acertos: number[];
   totalAcertos: number;
-  premiacaoCalculada: {
-    senas: number;
-    quinas: number;
-    quadras: number;
-    valorTotal: number;
-  };
+  premiacaoCalculada: PremiacaoCalculadaUniversal;
   foto_url?: string;
 }
 

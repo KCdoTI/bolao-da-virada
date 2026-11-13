@@ -134,3 +134,72 @@ test('buildWhatsAppReminderGroupMessage formats reminder with pending counts and
   const directUrl = buildWhatsAppDirectUrl('(31) 98456-7890', 'Olá');
   assert.ok(directUrl.startsWith('https://wa.me/5531984567890?text='));
 });
+
+test('conferirJogo on Lotofácil 16-number bet hitting 15 yields 1 of 15 and 15 of 14', () => {
+  // Aposta de 16 dezenas na Lotofácil acertando as 15 sorteadas:
+  // C(15, 15) * C(1, 0) = 1 de 15 pontos
+  // C(15, 14) * C(1, 1) = 15 de 14 pontos
+  const dezenasSorteadas = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+  const jogoLoto: Jogo = {
+    id: 'loto-1',
+    bolao_id: 'b-loto',
+    dezenas: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+    criado_em: '2026-09-07',
+  };
+  const premiosLoto: PremiacaoFaixas = {
+    pontos15: 2000000,
+    pontos14: 1500,
+    pontos13: 32,
+    pontos12: 13,
+    pontos11: 7,
+  };
+
+  const res = conferirJogo(jogoLoto, dezenasSorteadas, premiosLoto, 'Lotofácil');
+  assert.equal(res.totalAcertos, 15);
+  assert.equal(res.premiacaoCalculada.pontos15, 1);
+  assert.equal(res.premiacaoCalculada.pontos14, 15);
+  assert.equal(res.premiacaoCalculada.pontos13, 0);
+  assert.equal(res.premiacaoCalculada.valorTotal, 1 * 2000000 + 15 * 1500);
+});
+
+test('conferirJogo on Quina 7-number bet hitting 4 yields 3 Quadras, 12 Ternos and 6 Duques', () => {
+  // Aposta de 7 dezenas na Quina acertando 4 números:
+  // C(4, 4) * C(3, 1) = 3 Quadras
+  // C(4, 3) * C(3, 2) = 12 Ternos
+  // C(4, 2) * C(3, 3) = 6 Duques
+  const dezenasSorteadas = [10, 20, 30, 40, 50];
+  const jogoQuina: Jogo = {
+    id: 'quina-1',
+    bolao_id: 'b-quina',
+    dezenas: [10, 20, 30, 40, 60, 70, 80], // acertos: 10, 20, 30, 40 (4 acertos)
+    criado_em: '2026-06-24',
+  };
+  const premiosQuina: PremiacaoFaixas = {
+    quina: 15000000,
+    quadra: 8000,
+    terno: 120,
+    duque: 5,
+  };
+
+  const res = conferirJogo(jogoQuina, dezenasSorteadas, premiosQuina, 'Quina');
+  assert.equal(res.totalAcertos, 4);
+  assert.equal(res.premiacaoCalculada.quinas, 0);
+  assert.equal(res.premiacaoCalculada.quadras, 3);
+  assert.equal(res.premiacaoCalculada.ternos, 12);
+  assert.equal(res.premiacaoCalculada.duques, 6);
+  assert.equal(res.premiacaoCalculada.valorTotal, 3 * 8000 + 12 * 120 + 6 * 5);
+});
+
+test('parseCaixaTicketText parses Lotofácil and Quina sample tickets properly', () => {
+  const lotofacilTicket = SAMPLE_TICKETS[2];
+  const candidatesLoto = parseCaixaTicketText(lotofacilTicket.rawText, 'Lotofácil');
+  assert.ok(candidatesLoto.length > 0);
+  assert.equal(candidatesLoto[0].dezenas.length, 15);
+  assert.deepEqual(candidatesLoto[0].dezenas, lotofacilTicket.dezenasEsperadas);
+
+  const quinaTicket = SAMPLE_TICKETS[3];
+  const candidatesQuina = parseCaixaTicketText(quinaTicket.rawText, 'Quina');
+  assert.ok(candidatesQuina.length > 0);
+  assert.equal(candidatesQuina[0].dezenas.length, 5);
+  assert.deepEqual(candidatesQuina[0].dezenas, quinaTicket.dezenasEsperadas);
+});

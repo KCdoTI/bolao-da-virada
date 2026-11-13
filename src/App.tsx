@@ -494,6 +494,7 @@ export default function App() {
             participantes={participantes}
             dezenasSorteadas={dezenasSorteadas}
             onUpdateDezenasSorteadas={setDezenasSorteadas}
+            modalidade={bolao.modalidade}
           />
         )}
       </main>

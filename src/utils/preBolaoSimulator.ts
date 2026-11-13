@@ -24,6 +24,50 @@ export const TABELA_OFICIAL_CAIXA: CustoApostaCaixa[] = [
   { dezenas: 15, custo: 30030.0, apostasEquivalentes: 5005 },
 ];
 
+export const TABELA_OFICIAL_CAIXA_LOTOFACIL: CustoApostaCaixa[] = [
+  { dezenas: 15, custo: 3.5, apostasEquivalentes: 1 },
+  { dezenas: 16, custo: 56.0, apostasEquivalentes: 16 },
+  { dezenas: 17, custo: 476.0, apostasEquivalentes: 136 },
+  { dezenas: 18, custo: 2856.0, apostasEquivalentes: 816 },
+  { dezenas: 19, custo: 13566.0, apostasEquivalentes: 3876 },
+  { dezenas: 20, custo: 54264.0, apostasEquivalentes: 15504 },
+];
+
+export const TABELA_OFICIAL_CAIXA_QUINA: CustoApostaCaixa[] = [
+  { dezenas: 5, custo: 3.0, apostasEquivalentes: 1 },
+  { dezenas: 6, custo: 18.0, apostasEquivalentes: 6 },
+  { dezenas: 7, custo: 63.0, apostasEquivalentes: 21 },
+  { dezenas: 8, custo: 168.0, apostasEquivalentes: 56 },
+  { dezenas: 9, custo: 378.0, apostasEquivalentes: 126 },
+  { dezenas: 10, custo: 756.0, apostasEquivalentes: 252 },
+  { dezenas: 11, custo: 1386.0, apostasEquivalentes: 462 },
+  { dezenas: 12, custo: 2376.0, apostasEquivalentes: 792 },
+  { dezenas: 13, custo: 3861.0, apostasEquivalentes: 1287 },
+  { dezenas: 14, custo: 6006.0, apostasEquivalentes: 2002 },
+  { dezenas: 15, custo: 9009.0, apostasEquivalentes: 3003 },
+];
+
+export const TABELA_OFICIAL_CAIXA_DUPLA_SENA: CustoApostaCaixa[] = [
+  { dezenas: 6, custo: 3.0, apostasEquivalentes: 1 },
+  { dezenas: 7, custo: 21.0, apostasEquivalentes: 7 },
+  { dezenas: 8, custo: 84.0, apostasEquivalentes: 28 },
+  { dezenas: 9, custo: 252.0, apostasEquivalentes: 84 },
+  { dezenas: 10, custo: 630.0, apostasEquivalentes: 210 },
+  { dezenas: 11, custo: 1386.0, apostasEquivalentes: 462 },
+  { dezenas: 12, custo: 2772.0, apostasEquivalentes: 924 },
+  { dezenas: 13, custo: 5148.0, apostasEquivalentes: 1716 },
+  { dezenas: 14, custo: 9009.0, apostasEquivalentes: 3003 },
+  { dezenas: 15, custo: 15015.0, apostasEquivalentes: 5005 },
+];
+
+export function getTabelaOficialPorModalidade(modalidade: string = 'Mega-Sena'): CustoApostaCaixa[] {
+  const mod = modalidade.toLowerCase();
+  if (mod.includes('lotofácil') || mod.includes('lotofacil')) return TABELA_OFICIAL_CAIXA_LOTOFACIL;
+  if (mod.includes('quina')) return TABELA_OFICIAL_CAIXA_QUINA;
+  if (mod.includes('dupla')) return TABELA_OFICIAL_CAIXA_DUPLA_SENA;
+  return TABELA_OFICIAL_CAIXA;
+}
+
 export interface AlocacaoJogo {
   dezenas: number;
   quantidade: number;
