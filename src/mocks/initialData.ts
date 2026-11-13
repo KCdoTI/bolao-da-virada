@@ -1,18 +1,21 @@
 import { Bolao, Participante, Jogo } from '../types';
 
 export const mockBolao: Bolao = {
-  id: 'bolao-virada-2026',
-  nome: 'Bolão da Virada 2026 — Gestão de Cotas',
-  modalidade: 'Mega da Virada',
+  id: 'bolao-mega-2026',
+  nome: 'Bolão da Mega — Gestão de Cotas',
+  modalidade: 'Mega-Sena',
   concurso_numero: 2810,
-  valor_cota: 50.00,
-  data_limite: '2026-12-31T17:00:00',
-  chave_pix_organizador: 'carlos.organizador@pix.com.br',
-  status: 'sorteado',
+  valor_cota: 12.00,
+  data_limite: '2026-11-19T17:00:00',
+  chave_pix_organizador: 'kelvin.organizador@pix.com.br',
+  nome_organizador: 'Kelvin Castro',
+  status: 'aberto',
   dezenas_sorteadas: [5, 10, 18, 34, 42, 59],
-  hash_slug: 'virada-2026-x9k2',
+  hash_slug: 'mega-2026-k8p1',
+  regra_downgrade: 'cortar_satelites',
+  horario_limite_loterica: '18:00',
   regras: [
-    'O valor de cada cota é de R$ 50,00.',
+    'O valor de cada cota é de R$ 12,00.',
     'Apenas cotas com pagamento confirmado até a data limite participam da divisão de qualquer premiação.',
     'Todas as apostas são registradas em lotéricas oficiais da Caixa Econômica Federal com comprovante fotográfico disponível.',
     'O rateio de prêmios será estritamente proporcional ao número de cotas pagas por cada participante.',
@@ -21,14 +24,14 @@ export const mockBolao: Bolao = {
 };
 
 export const mockParticipantes: Participante[] = [
-  { id: 'p-1', bolao_id: 'bolao-virada-2026', nome: 'Carlos Silva (Organizador)', telefone: '(11) 98765-4321', qtd_cotas: 3, status_pagamento: 'Pago', data_registro: '2026-12-01' },
-  { id: 'p-2', bolao_id: 'bolao-virada-2026', nome: 'Mariana Rios', telefone: '(11) 97123-8899', qtd_cotas: 2, status_pagamento: 'Pago', data_registro: '2026-12-02' },
-  { id: 'p-3', bolao_id: 'bolao-virada-2026', nome: 'Lucas Mendonça', telefone: '(21) 99876-1234', qtd_cotas: 1, status_pagamento: 'Pago', data_registro: '2026-12-04' },
-  { id: 'p-4', bolao_id: 'bolao-virada-2026', nome: 'Fernanda Souza', telefone: '(31) 98456-7890', qtd_cotas: 2, status_pagamento: 'Pendente', data_registro: '2026-12-05' },
-  { id: 'p-5', bolao_id: 'bolao-virada-2026', nome: 'Rafael Torres', telefone: '(41) 99112-3344', qtd_cotas: 2, status_pagamento: 'Pago', data_registro: '2026-12-06' },
-  { id: 'p-6', bolao_id: 'bolao-virada-2026', nome: 'Beatriz Almeida', telefone: '(19) 98223-4455', qtd_cotas: 1, status_pagamento: 'Pago', data_registro: '2026-12-08' },
-  { id: 'p-7', bolao_id: 'bolao-virada-2026', nome: 'Guilherme Rocha', telefone: '(81) 99334-5566', qtd_cotas: 1, status_pagamento: 'Pendente', data_registro: '2026-12-10' },
-  { id: 'p-8', bolao_id: 'bolao-virada-2026', nome: 'Juliana Costa', telefone: '(71) 98445-6677', qtd_cotas: 2, status_pagamento: 'Pago', data_registro: '2026-12-11' },
+  { id: 'p-1', bolao_id: 'bolao-mega-2026', nome: 'Kelvin Castro (Organizador)', telefone: '(11) 98765-4321', qtd_cotas: 2, status_pagamento: 'Pago', data_registro: '2026-11-10', token_acesso: 'cot_kelvin_org' },
+  { id: 'p-2', bolao_id: 'bolao-mega-2026', nome: 'Mariana Rios', telefone: '(11) 97123-8899', qtd_cotas: 1, status_pagamento: 'Pago', data_registro: '2026-11-10', token_acesso: 'cot_mariana_r' },
+  { id: 'p-3', bolao_id: 'bolao-mega-2026', nome: 'Lucas Mendonça', telefone: '(21) 99876-1234', qtd_cotas: 1, status_pagamento: 'Pago', data_registro: '2026-11-11', token_acesso: 'cot_lucas_m' },
+  { id: 'p-4', bolao_id: 'bolao-mega-2026', nome: 'Fernanda Souza', telefone: '(31) 98456-7890', qtd_cotas: 1, status_pagamento: 'Pendente', data_registro: '2026-11-11', token_acesso: 'cot_fernanda_s' },
+  { id: 'p-5', bolao_id: 'bolao-mega-2026', nome: 'Rafael Torres', telefone: '(41) 99112-3344', qtd_cotas: 1, status_pagamento: 'Pago', data_registro: '2026-11-11', token_acesso: 'cot_rafael_t' },
+  { id: 'p-6', bolao_id: 'bolao-mega-2026', nome: 'Beatriz Almeida', telefone: '(19) 98223-4455', qtd_cotas: 1, status_pagamento: 'Pago', data_registro: '2026-11-12', token_acesso: 'cot_beatriz_a' },
+  { id: 'p-7', bolao_id: 'bolao-mega-2026', nome: 'Guilherme Rocha', telefone: '(81) 99334-5566', qtd_cotas: 1, status_pagamento: 'Pendente', data_registro: '2026-11-12', token_acesso: 'cot_guilherme_r' },
+  { id: 'p-8', bolao_id: 'bolao-mega-2026', nome: 'Juliana Costa', telefone: '(71) 98445-6677', qtd_cotas: 1, status_pagamento: 'Pago', data_registro: '2026-11-12', token_acesso: 'cot_juliana_c' },
 ];
 
 // Comprovantes gráficos em SVG codificados para exibição nítida e segura sem links externos frágeis

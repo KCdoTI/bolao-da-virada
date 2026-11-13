@@ -24,8 +24,8 @@ test('generateCanonicalManifest produces stable and sorted output', () => {
   const manifest1 = generateCanonicalManifest(mockBolao, mockParticipantes, mockJogos);
   const manifest2 = generateCanonicalManifest(mockBolao, mockParticipantes, mockJogos);
   assert.equal(manifest1, manifest2);
-  assert.ok(manifest1.includes('bolao-virada-2026'));
-  assert.ok(manifest1.includes('Carlos Silva'));
+  assert.ok(manifest1.includes('bolao-mega-2026'));
+  assert.ok(manifest1.includes('Kelvin Castro'));
 });
 
 test('buildWhatsAppProofSubmissionUrl creates proper direct whatsapp link', () => {
@@ -48,5 +48,5 @@ test('buildWhatsAppIndividualParticipantLinkMessage formats participant invite m
   );
   assert.ok(msg.includes('Mariana Rios'));
   assert.ok(msg.includes('https://bolao.app/#cota-cot_mariana'));
-  assert.ok(msg.includes('carlos.organizador@pix.com.br'));
+  assert.ok(msg.includes('kelvin.organizador@pix.com.br'));
 });

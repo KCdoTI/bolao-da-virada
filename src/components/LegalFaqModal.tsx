@@ -99,7 +99,7 @@ export const LegalFaqModal: React.FC<LegalFaqModalProps> = ({ isOpen, onClose })
               Prêmios = C(m, k) × C(n - m, 6 - k)
             </div>
             <p className="text-[11px] text-slate-500">
-              Exemplo: Aposta de 7 números que acerta 5 dezenas ganha automaticamente <strong>2 Quinas</strong> e <strong>5 Quadras</strong>. O Bolão da Virada calcula isso de forma 100% automatizada.
+              Exemplo: Aposta de 7 números que acerta 5 dezenas ganha automaticamente <strong>2 Quinas</strong> e <strong>5 Quadras</strong>. O Bolão da Mega calcula isso de forma 100% automatizada.
             </p>
           </div>
         </div>

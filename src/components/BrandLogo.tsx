@@ -130,11 +130,11 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       {icon}
       <div className="flex flex-col">
         <span className="font-extrabold text-base sm:text-lg tracking-tight text-white leading-tight">
-          Bolão da Virada
+          Bolão da Mega
         </span>
         {showSubtitle && (
           <span className="text-[10px] text-emerald-400 font-semibold tracking-wider uppercase mt-0.5">
-            Consórcio & Auditoria de Cotas
+            Gestão & Auditoria de Cotas
           </span>
         )}
       </div>

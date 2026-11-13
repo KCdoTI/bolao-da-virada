@@ -66,7 +66,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             <BrandLogo size={40} />
             <div>
               <span className="font-black text-base sm:text-lg tracking-tight text-white block leading-tight">
-                Bolão da Virada
+                Bolão da Mega
               </span>
               <span className="text-[11px] text-emerald-400 font-semibold tracking-wider uppercase block mt-0.5">
                 Gestão & Auditoria de Cotas
@@ -227,10 +227,17 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-8 sm:pb-10 flex flex-col md:flex-row md:items-center justify-between gap-5 sm:gap-6">
           <div className="space-y-2.5 max-w-2xl">
             <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-              <span className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                {bolao.modalidade}
-              </span>
+              {bolao.modalidade === 'Mega da Virada' ? (
+                <span className="inline-flex items-center gap-1.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-2xs">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  🌟 Mega da Virada — Edição Especial
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-2xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  {bolao.modalidade}
+                </span>
+              )}
               <span className="bg-slate-800/80 text-slate-300 text-xs font-mono px-3 py-1 rounded-full border border-slate-700/60">
                 Concurso #{bolao.concurso_numero}
               </span>

@@ -88,7 +88,7 @@ export const TicketViewerModal: React.FC<TicketViewerModalProps> = ({
 
         {/* Footer com link direto */}
         <div className="p-3 border-t border-slate-800 flex items-center justify-between bg-slate-900 text-xs">
-          <span className="text-slate-400 text-[11px]">Auditado pelo Bolão da Virada</span>
+          <span className="text-slate-400 text-[11px]">Auditado pelo Bolão da Mega</span>
           {imageUrl && (
             <a
               href={imageUrl}
