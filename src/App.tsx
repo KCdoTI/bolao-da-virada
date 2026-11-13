@@ -505,6 +505,7 @@ export default function App() {
         onSaveJogo={handleAddJogo}
         bolaoId={bolao.id}
         initialDezenas={prefilledDezenas}
+        modalidade={bolao.modalidade}
       />
 
       <AddParticipantModal

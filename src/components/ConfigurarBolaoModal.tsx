@@ -13,6 +13,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { Bolao, RegraDowngrade, TipoChavePix } from '../types';
+import { GRUPOS_MODALIDADES, getModalidadeInfo } from '../constants/lotteryCatalog';
 
 interface ConfigurarBolaoModalProps {
   isOpen: boolean;
@@ -150,20 +151,67 @@ export const ConfigurarBolaoModal: React.FC<ConfigurarBolaoModalProps> = ({
 
             <div className="space-y-1">
               <label className="font-bold text-slate-700 dark:text-slate-200 block">
-                Modalidade:
+                Modalidade Caixa:
               </label>
               <select
                 value={modalidade}
                 onChange={(e) => setModalidade(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
               >
-                <option value="Mega-Sena">Mega-Sena</option>
-                <option value="Mega da Virada">Mega da Virada</option>
-                <option value="Quina">Quina</option>
-                <option value="Lotofácil">Lotofácil</option>
+                {GRUPOS_MODALIDADES.map((grupo) => (
+                  <optgroup key={grupo.grupo} label={grupo.grupo} className="font-bold text-slate-900 dark:text-slate-100">
+                    {grupo.opcoes.map((opcao) => {
+                      const mod = getModalidadeInfo(opcao);
+                      return (
+                        <option key={opcao} value={opcao} className="font-medium">
+                          {mod.icone} {opcao} {mod.isEspecial ? '⭐ (Especial)' : ''}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                ))}
               </select>
             </div>
           </div>
+
+          {/* Banner Informativo da Modalidade Selecionada */}
+          {(() => {
+            const infoMod = getModalidadeInfo(modalidade);
+            return (
+              <div
+                className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+                  infoMod.isEspecial
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200'
+                    : 'bg-slate-100 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                <div className="space-y-0.5 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{infoMod.icone}</span>
+                    <strong className="text-xs font-bold">
+                      {infoMod.isEspecial ? infoMod.edicaoEspecialNome || infoMod.nome : infoMod.nome}
+                    </strong>
+                    {infoMod.isEspecial && (
+                      <span className="text-[10px] bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold px-2 py-0.5 rounded-full border border-amber-500/30">
+                        {infoMod.mesEvento || 'Edição Especial'}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] opacity-90 leading-tight">
+                    {infoMod.descricao}
+                  </p>
+                </div>
+                <div className="flex sm:flex-col items-center sm:items-end justify-between gap-1 shrink-0 text-[11px] font-mono border-t sm:border-t-0 pt-1.5 sm:pt-0 border-slate-200/50 dark:border-slate-700/50">
+                  <span className="font-semibold">
+                    {infoMod.minimoDezenas} a {infoMod.maximoDezenas} dezenas (1–{infoMod.universoNumeros})
+                  </span>
+                  <span className="text-[10px] opacity-80">
+                    Aposta simples: R$ {infoMod.valorApostaSimples.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Concurso e Valor da Cota */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

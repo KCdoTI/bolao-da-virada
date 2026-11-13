@@ -27,6 +27,7 @@ import { conferirJogo, calcularRateio } from '../utils/lotteryEngine';
 import { TicketViewerModal } from './TicketViewerModal';
 import { LegalFaqModal } from './LegalFaqModal';
 import { BrandLogo } from './BrandLogo';
+import { getModalidadeInfo } from '../constants/lotteryCatalog';
 
 interface PublicTransparencyViewProps {
   bolao: Bolao;
@@ -159,17 +160,19 @@ export const PublicTransparencyView: React.FC<PublicTransparencyViewProps> = ({
             <BrandLogo size={36} />
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                {bolao.modalidade === 'Mega da Virada' ? (
-                  <span className="inline-flex items-center gap-1.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                    🌟 Mega da Virada — Edição Especial
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    {bolao.modalidade}
-                  </span>
-                )}
+                {(() => {
+                  const infoMod = getModalidadeInfo(bolao.modalidade);
+                  return (
+                    <span
+                      className={`inline-flex items-center gap-1.5 ${infoMod.estilo.badgeBg} ${infoMod.estilo.badgeText} border ${infoMod.estilo.badgeBorder} text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                        infoMod.isEspecial ? 'animate-pulse' : ''
+                      }`}
+                    >
+                      <span>{infoMod.icone}</span>
+                      {infoMod.isEspecial ? infoMod.edicaoEspecialNome || infoMod.nome : infoMod.nome}
+                    </span>
+                  );
+                })()}
                 <span className="text-xs font-mono text-slate-400">Concurso #{bolao.concurso_numero}</span>
                 <span
                   className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full ${

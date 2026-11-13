@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Check, Sparkles, Camera, AlertCircle, Trash2, Brain } from 'lucide-react';
 import { Jogo } from '../types';
 import { TicketOcrModal } from './TicketOcrModal';
+import { getModalidadeInfo } from '../constants/lotteryCatalog';
 
 interface VolanteModalProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface VolanteModalProps {
   onSaveJogo: (novoJogo: Omit<Jogo, 'id' | 'criado_em'>) => void;
   bolaoId: string;
   initialDezenas?: number[];
+  modalidade?: string;
 }
 
 export const VolanteModal: React.FC<VolanteModalProps> = ({
@@ -17,11 +19,17 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
   onSaveJogo,
   bolaoId,
   initialDezenas,
+  modalidade = 'Mega-Sena',
 }) => {
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
   const [fotoUrl, setFotoUrl] = useState<string>('');
   const [codigoBilhete, setCodigoBilhete] = useState<string>('');
   const [isOcrOpen, setIsOcrOpen] = useState(false);
+
+  const infoMod = getModalidadeInfo(modalidade);
+  const minDezenas = infoMod.minimoDezenas;
+  const maxDezenas = infoMod.maximoDezenas;
+  const universo = infoMod.universoNumeros;
 
   useEffect(() => {
     if (initialDezenas && initialDezenas.length > 0) {
@@ -35,15 +43,15 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
     if (selectedNumbers.includes(num)) {
       setSelectedNumbers(selectedNumbers.filter((n) => n !== num));
     } else {
-      if (selectedNumbers.length >= 15) return;
+      if (selectedNumbers.length >= maxDezenas) return;
       setSelectedNumbers([...selectedNumbers, num].sort((a, b) => a - b));
     }
   };
 
   const handleSurpresinha = () => {
     const nums = new Set<number>();
-    while (nums.size < 6) {
-      nums.add(Math.floor(Math.random() * 60) + 1);
+    while (nums.size < minDezenas) {
+      nums.add(Math.floor(Math.random() * universo) + 1);
     }
     setSelectedNumbers(Array.from(nums).sort((a, b) => a - b));
   };
@@ -56,7 +64,7 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
   };
 
   const handleSave = () => {
-    if (selectedNumbers.length < 6 || selectedNumbers.length > 15) return;
+    if (selectedNumbers.length < minDezenas || selectedNumbers.length > maxDezenas) return;
     onSaveJogo({
       bolao_id: bolaoId,
       dezenas: selectedNumbers,
@@ -70,7 +78,7 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
   };
 
   const count = selectedNumbers.length;
-  const isValid = count >= 6 && count <= 15;
+  const isValid = count >= minDezenas && count <= maxDezenas;
 
   const pares = selectedNumbers.filter((n) => n % 2 === 0).length;
   const impares = count - pares;
@@ -80,15 +88,20 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Cadastrar Novo Jogo no Volante"
+        aria-label={`Cadastrar Novo Jogo no Volante (${infoMod.nome})`}
         className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-150"
       >
         <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-t-3xl sm:rounded-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
           {/* Header */}
           <div className="px-5 py-4 border-b border-emerald-900 flex items-center justify-between bg-emerald-800 text-white">
             <div>
-              <h3 className="font-bold text-lg leading-tight text-white">Cadastrar Novo Jogo</h3>
-              <p className="text-xs text-emerald-100 mt-0.5">Volante oficial Mega da Virada (6 a 15 dezenas)</p>
+              <h3 className="font-bold text-lg leading-tight text-white flex items-center gap-2">
+                <span>{infoMod.icone}</span>
+                <span>Cadastrar Jogo — {infoMod.nome}</span>
+              </h3>
+              <p className="text-xs text-emerald-100 mt-0.5">
+                Volante oficial ({minDezenas} a {maxDezenas} dezenas de 1 a {universo})
+              </p>
             </div>
             <button
               onClick={onClose}
@@ -110,11 +123,11 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
                     : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30'
                 }`}
               >
-                <span>{count} / 15</span>
-                {isValid ? <Check size={12} className="text-emerald-600 dark:text-emerald-400" /> : <span className="text-[10px] font-sans font-normal">(mín. 6)</span>}
+                <span>{count} / {maxDezenas}</span>
+                {isValid ? <Check size={12} className="text-emerald-600 dark:text-emerald-400" /> : <span className="text-[10px] font-sans font-normal">(mín. {minDezenas})</span>}
               </span>
 
-              {count >= 6 && (
+              {count >= minDezenas && (
                 <span className="text-[11px] text-slate-500 font-medium">
                   ({pares}P / {impares}I)
                 </span>
@@ -153,10 +166,20 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
             </div>
           </div>
 
-          {/* Grid dos 60 Números */}
+          {/* Grid dos Números do Volante Adaptativo */}
           <div className="p-4 overflow-y-auto max-h-[360px]">
-            <div className="grid grid-cols-6 sm:grid-cols-10 gap-1.5 sm:gap-2">
-              {Array.from({ length: 60 }, (_, i) => i + 1).map((num) => {
+            <div
+              className={`grid gap-1.5 sm:gap-2 ${
+                universo <= 25
+                  ? 'grid-cols-5'
+                  : universo <= 50
+                  ? 'grid-cols-5 sm:grid-cols-10'
+                  : universo <= 60
+                  ? 'grid-cols-6 sm:grid-cols-10'
+                  : 'grid-cols-8 sm:grid-cols-10'
+              }`}
+            >
+              {Array.from({ length: universo }, (_, i) => i + 1).map((num) => {
                 const isSelected = selectedNumbers.includes(num);
                 return (
                   <button
@@ -211,7 +234,7 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
             {!isValid ? (
               <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium">
                 <AlertCircle size={15} />
-                <span>{count < 6 ? `Faltam ${6 - count} dezenas para o mínimo` : 'Máximo de 15 atingido'}</span>
+                <span>{count < minDezenas ? `Faltam ${minDezenas - count} dezenas para o mínimo` : `Máximo de ${maxDezenas} atingido`}</span>
               </div>
             ) : (
               <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">

@@ -4,10 +4,20 @@ export type StatusPagamento = 'Pendente' | 'Pago';
 export type RegraDowngrade = 'cortar_satelites' | 'diminuir_dezenas' | 'devolver_excedente';
 export type TipoChavePix = 'cpf' | 'cnpj' | 'email' | 'telefone' | 'aleatoria';
 
+export type ModalidadeLoteria =
+  | 'Mega-Sena'
+  | 'Mega da Virada'
+  | 'Lotofácil'
+  | 'Lotofácil da Independência'
+  | 'Quina'
+  | 'Quina de São João'
+  | 'Dupla Sena'
+  | 'Dupla de Páscoa';
+
 export interface Bolao {
   id: string;
   nome: string;
-  modalidade: string;
+  modalidade: ModalidadeLoteria | string;
   concurso_numero: number;
   valor_cota: number;
   data_limite: string;
