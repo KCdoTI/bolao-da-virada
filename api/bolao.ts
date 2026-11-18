@@ -1,47 +1,98 @@
-// Simple in-memory KV cache for serverless execution
-// In production with Upstash or Supabase, KV env variables can connect directly.
-const memoryStore = new Map<string, any>();
-
+import { getStore } from "../server/store";
+import {
+  createPool,
+  readPool,
+  updatePool,
+  HttpError,
+} from "../server/poolService";
+import { fetchOfficialDraw } from "../server/caixa";
 export default async function handler(req: any, res: any) {
-  // Enable CORS
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  try {
+    const credential =
+      /^Bearer ([A-Za-z0-9_-]{43})$/.exec(
+        req.headers.authorization || "",
+      )?.[1] || "";
+    if (!["GET", "POST", "PUT"].includes(req.method)) {
+      res.setHeader("Allow", "GET, POST, PUT");
+      throw new HttpError(405, "Método não permitido.");
+    }
+    if (
+      req.method !== "GET" &&
+      !String(req.headers["content-type"] || "").startsWith("application/json")
+    )
+      throw new HttpError(415, "Envie JSON.");
+    if (JSON.stringify(req.body || {}).length > 3500000)
+      throw new HttpError(
+        413,
+        "O bolão excede o limite de 3,5 MB. Reduza as fotos.",
+      );
+    if (req.method === "PUT" && !credential)
+      throw new HttpError(401, "Acesso do organizador necessário.");
+    const store = await getStore();
+    if (req.method === "GET")
+      return res
+        .status(200)
+        .json(
+          await readPool(
+            store,
+            String(req.query.id || ""),
+            credential,
+            req.headers["x-participant-token"],
+          ),
+        );
+    if (req.method === "POST")
+      return res.status(201).json(await createPool(store, req.body));
+    let { state, revision, action } = req.body || {};
+    if (
+      ![
+        "atualizado",
+        "fechado",
+        "resultado_manual",
+        "importar_caixa",
+        "revogar_link",
+      ].includes(action)
+    )
+      action = "atualizado";
+    if (action === "importar_caixa") {
+      const current = await readPool(store, "", credential);
+      const result = await fetchOfficialDraw(
+        current.bolao.modalidade,
+        current.bolao.concurso_numero,
+      );
+      state = {
+        bolao: { ...current.bolao, resultado: result },
+        participantes: current.participantes,
+        jogos: current.jogos,
+      };
+    }
+    return res
+      .status(200)
+      .json(
+        await updatePool(
+          store,
+          credential,
+          state,
+          revision,
+          action,
+          action === "importar_caixa",
+        ),
+      );
+  } catch (e) {
+    const known = e instanceof HttpError;
+    const status = known
+      ? e.status
+      : e instanceof Error && /dezenas|Premiação/.test(e.message)
+        ? 400
+        : 503;
+    return res
+      .status(status)
+      .json({
+        error:
+          known || status === 400
+            ? (e as Error).message
+            : "Serviço indisponível. Nenhuma alteração foi confirmada. Tente novamente.",
+      });
   }
-
-  const { id } = req.query;
-
-  if (req.method === 'GET') {
-    if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'ID do bolão não informado' });
-    }
-    const data = memoryStore.get(id);
-    if (!data) {
-      return res.status(404).json({ error: 'Bolão não encontrado' });
-    }
-    return res.status(200).json(data);
-  }
-
-  if (req.method === 'POST') {
-    const payload = req.body;
-    if (!payload || !payload.bolao || !payload.bolao.id) {
-      return res.status(400).json({ error: 'Payload inválido' });
-    }
-    const bolaoId = payload.bolao.id;
-    memoryStore.set(bolaoId, payload);
-    if (payload.bolao.hash_slug) {
-      memoryStore.set(payload.bolao.hash_slug, payload);
-    }
-    return res.status(200).json({ success: true, id: bolaoId });
-  }
-
-  return res.status(405).json({ error: 'Método não permitido' });
 }

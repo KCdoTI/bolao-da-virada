@@ -1,3 +1,5 @@
+import { validarDezenas } from '../utils/validation';
+import { useModalFocus } from '../hooks/useModalFocus';
 import React, { useState, useEffect } from 'react';
 import { X, Check, Sparkles, Camera, AlertCircle, Trash2, Brain } from 'lucide-react';
 import { Jogo } from '../types';
@@ -7,7 +9,7 @@ import { getModalidadeInfo } from '../constants/lotteryCatalog';
 interface VolanteModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSaveJogo: (novoJogo: Omit<Jogo, 'id' | 'criado_em'>) => void;
+  onSaveJogo: (novoJogo: Omit<Jogo, 'id' | 'criado_em'>) => Promise<boolean>;
   bolaoId: string;
   initialDezenas?: number[];
   modalidade?: string;
@@ -25,6 +27,9 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
   const [fotoUrl, setFotoUrl] = useState<string>('');
   const [codigoBilhete, setCodigoBilhete] = useState<string>('');
   const [isOcrOpen, setIsOcrOpen] = useState(false);
+  const [saving,setSaving]=useState(false);
+  const [saveError,setSaveError]=useState('');
+  useModalFocus(isOpen,onClose);
 
   const infoMod = getModalidadeInfo(modalidade);
   const minDezenas = infoMod.minimoDezenas;
@@ -63,14 +68,18 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
     }
   };
 
-  const handleSave = () => {
-    if (selectedNumbers.length < minDezenas || selectedNumbers.length > maxDezenas) return;
-    onSaveJogo({
+  const handleSave = async () => {
+    if(saving)return;
+    try{validarDezenas(selectedNumbers,modalidade);}catch(e){setSaveError((e as Error).message);return;}
+    setSaving(true);setSaveError('');
+    const saved=await onSaveJogo({
       bolao_id: bolaoId,
       dezenas: selectedNumbers,
       foto_url: fotoUrl.trim() || undefined,
       codigo_bilhete: codigoBilhete.trim() || undefined,
     });
+    setSaving(false);
+    if(!saved){setSaveError('Não foi possível salvar. Confira o aviso no painel e tente novamente.');return;}
     setSelectedNumbers([]);
     setFotoUrl('');
     setCodigoBilhete('');
@@ -78,7 +87,7 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
   };
 
   const count = selectedNumbers.length;
-  const isValid = count >= minDezenas && count <= maxDezenas;
+  const isValid = count >= minDezenas && count <= maxDezenas && new Set(selectedNumbers).size===count && selectedNumbers.every(n=>Number.isInteger(n)&&n>=1&&n<=universo);
 
   const pares = selectedNumbers.filter((n) => n % 2 === 0).length;
   const impares = count - pares;
@@ -92,6 +101,7 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
         className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-150"
       >
         <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-t-3xl sm:rounded-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+          {saveError && <p role="alert" className="error">{saveError}</p>}
           {/* Header */}
           <div className="px-5 py-4 border-b border-emerald-900 flex items-center justify-between bg-emerald-800 text-white">
             <div>
@@ -100,7 +110,7 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
                 <span>Cadastrar Jogo — {infoMod.nome}</span>
               </h3>
               <p className="text-xs text-emerald-100 mt-0.5">
-                Volante oficial ({minDezenas} a {maxDezenas} dezenas de 1 a {universo})
+                Seleção de dezenas ({minDezenas} a {maxDezenas} dezenas de 1 a {universo})
               </p>
             </div>
             <button
@@ -201,17 +211,9 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
 
             {/* Campos de Foto e Autenticação */}
             <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                  Foto / Comprovante (URL opcional):
-                </label>
-                <input
-                  type="text"
-                  placeholder="https://... ou preenchido via OCR"
-                  value={fotoUrl}
-                  onChange={(e) => setFotoUrl(e.target.value)}
-                  className="w-full text-sm sm:text-xs px-3 py-2.5 min-h-[42px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
+              <div className="text-sm text-slate-600">
+                <p>{fotoUrl ? 'Foto original anexada.' : 'Nenhuma foto anexada.'}</p>
+                <button type="button" className="btn mt-2" onClick={()=>setIsOcrOpen(true)}>Anexar / conferir comprovante</button>
               </div>
 
               <div>
@@ -245,7 +247,7 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
 
             <button
               type="button"
-              disabled={!isValid}
+              disabled={!isValid||saving}
               onClick={handleSave}
               className={`px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm ${
                 isValid
@@ -260,7 +262,7 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
       </div>
 
       {/* Modal de OCR */}
-      <TicketOcrModal
+      <TicketOcrModal modalidade={modalidade}
         isOpen={isOcrOpen}
         onClose={() => setIsOcrOpen(false)}
         onDezenasConfirmadas={handleOcrResult}

@@ -1,4 +1,5 @@
 node_modules/
+.data/
 build/
 dist/
 coverage/
@@ -9,5 +10,5 @@ coverage/
 .aistudio/
 .antigravity/
 .vscode/
-
-.vercel
+.vercel/
+.playwright-mcp/

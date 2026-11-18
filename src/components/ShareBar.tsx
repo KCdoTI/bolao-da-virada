@@ -18,6 +18,7 @@ export const ShareBar: React.FC<ShareBarProps> = ({
 }) => {
   const [copiedPublic, setCopiedPublic] = useState(false);
   const [copiedAdmin, setCopiedAdmin] = useState(false);
+  const [copyError,setCopyError]=useState('');
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://bolao-da-virada.app';
   const publicUrl = `${baseUrl}/#b-${bolao.hash_slug}`;
@@ -29,8 +30,7 @@ export const ShareBar: React.FC<ShareBarProps> = ({
       setCopiedPublic(true);
       setTimeout(() => setCopiedPublic(false), 2200);
     } catch {
-      setCopiedPublic(true);
-      setTimeout(() => setCopiedPublic(false), 2200);
+      setCopyError('Não foi possível copiar. Selecione o link público exibido abaixo.');
     }
   };
 
@@ -40,8 +40,7 @@ export const ShareBar: React.FC<ShareBarProps> = ({
       setCopiedAdmin(true);
       setTimeout(() => setCopiedAdmin(false), 2200);
     } catch {
-      setCopiedAdmin(true);
-      setTimeout(() => setCopiedAdmin(false), 2200);
+      setCopyError('Não foi possível copiar. Guarde o endereço desta página para administrar o bolão.');
     }
   };
 
@@ -53,8 +52,9 @@ export const ShareBar: React.FC<ShareBarProps> = ({
 
   return (
     <div className="bg-slate-900 dark:bg-slate-900/90 text-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-800 mb-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+      {copyError && <p role="alert">{copyError}</p>}
+      <div className="flex flex-col lg:flex-row lg:flex-wrap lg:items-center justify-between gap-4">
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <ShieldCheck size={18} className="text-emerald-400" />
             <h2 className="font-bold text-sm sm:text-base text-white">Links de Compartilhamento e Acesso</h2>
@@ -64,7 +64,7 @@ export const ShareBar: React.FC<ShareBarProps> = ({
           </p>
 
           <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs font-mono">
-            <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 text-emerald-300 max-w-xs sm:max-w-md truncate">
+            <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 text-emerald-300 max-w-full sm:max-w-md min-w-0 truncate">
               <span className="text-slate-500 select-none">Público:</span>
               <span className="truncate">{publicUrl}</span>
             </div>

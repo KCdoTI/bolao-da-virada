@@ -24,6 +24,7 @@ import {
 } from '../utils/transparency';
 
 interface ParticipantListProps {
+  readOnly?: boolean;
   bolao: Bolao;
   participantes: Participante[];
   onToggleStatus: (id: string) => void;
@@ -32,6 +33,7 @@ interface ParticipantListProps {
 }
 
 export const ParticipantList: React.FC<ParticipantListProps> = ({
+  readOnly = false,
   bolao,
   participantes,
   onToggleStatus,
@@ -46,13 +48,13 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
   const pendentes = participantes.filter((p) => p.status_pagamento === 'Pendente');
 
   const publicUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}${window.location.pathname}#${bolao.id}`
-    : `https://bolao-da-virada.app/#${bolao.id}`;
+    ? `${window.location.origin}/#b-${bolao.hash_slug}`
+    : `https://bolao-da-virada.app/#b-${bolao.hash_slug}`;
 
   const copyParticipantLink = (p: Participante) => {
     const personalUrl = typeof window !== 'undefined'
-      ? `${window.location.origin}/#cota-${p.token_acesso || p.id}`
-      : `/#cota-${p.token_acesso || p.id}`;
+      ? `${window.location.origin}/#cota-${bolao.hash_slug}.${p.token_acesso}`
+      : `/#cota-${bolao.hash_slug}.${p.token_acesso}`;
     navigator.clipboard.writeText(personalUrl);
     setCopiedId(p.id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -93,7 +95,7 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
 
           <button
             type="button"
-            onClick={onOpenAddModal}
+            disabled={readOnly} onClick={onOpenAddModal}
             className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2.5 px-3.5 min-h-[40px] rounded-xl transition-all duration-150 active:scale-[0.98] shadow-xs"
           >
             <PlusCircle size={15} />
@@ -180,7 +182,7 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
                     {/* Botão de Alternar Status de Pagamento */}
                     <button
                       type="button"
-                      onClick={() => onToggleStatus(participante.id)}
+                      disabled={readOnly} onClick={() => onToggleStatus(participante.id)}
                       aria-label={`Alternar pagamento de ${participante.nome}: atualmente ${participante.status_pagamento}`}
                       className={`text-xs font-semibold px-3.5 py-2 min-h-[40px] rounded-xl transition-all duration-150 flex items-center gap-1.5 active:scale-[0.98] border shadow-xs ${
                         isPago
@@ -219,7 +221,7 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
                         buildWhatsAppIndividualParticipantLinkMessage(
                           participante,
                           bolao,
-                          `${typeof window !== 'undefined' ? window.location.origin : ''}/#cota-${participante.token_acesso || participante.id}`
+                          `${typeof window !== 'undefined' ? window.location.origin : ''}/#cota-${bolao.hash_slug}.${participante.token_acesso}`
                         )
                       )}
                       target="_blank"
@@ -234,7 +236,7 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
                     {/* Excluir Participante (Touch Target 40x40) */}
                     <button
                       type="button"
-                      onClick={() => onRemoveParticipante(participante.id)}
+                      disabled={readOnly} onClick={() => onRemoveParticipante(participante.id)}
                       aria-label={`Remover ${participante.nome}`}
                       className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-red-500 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 active:scale-[0.95] transition-all duration-150 cursor-pointer"
                       title="Remover participante"

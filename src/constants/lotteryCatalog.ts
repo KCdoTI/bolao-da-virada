@@ -22,7 +22,7 @@ export interface ModalidadeDetalhada {
   qtdDezenasSorteadas: number;
   valorApostaSimples: number; // Preço oficial Caixa 2026
   mesEvento?: string;
-  regraAcumulacao: 'Acumula normalmente' | 'Não acumula — rateio obrigatório nas faixas inferiores';
+  regraAcumulacao: 'Acumula normalmente' | 'Redistribuição especial conforme regulamento da Caixa';
   descricao: string;
   estilo: {
     badgeBg: string;
@@ -44,11 +44,11 @@ export const CATALOGO_MODALIDADES: Record<string, ModalidadeDetalhada> = {
     icone: '🍀',
     universoNumeros: 60,
     minimoDezenas: 6,
-    maximoDezenas: 15,
+    maximoDezenas: 20,
     qtdDezenasSorteadas: 6,
     valorApostaSimples: 6.0,
     regraAcumulacao: 'Acumula normalmente',
-    descricao: 'A maior loteria do Brasil. Sorteios regulares às terças, quintas e sábados.',
+    descricao: 'A maior loteria do Brasil. Consulte o calendário vigente de sorteios no portal da Caixa.',
     estilo: {
       badgeBg: 'bg-emerald-500/15',
       badgeText: 'text-emerald-300',
@@ -62,7 +62,7 @@ export const CATALOGO_MODALIDADES: Record<string, ModalidadeDetalhada> = {
       { nome: 'Quadra', acertos: 4, descricao: 'Terceira Faixa (4 acertos)' },
     ],
     regrasPadrao: [
-      'Apostas oficiais registradas na Caixa com volante de 6 a 15 dezenas.',
+      'Apostas oficiais registradas na Caixa com volante de 6 a 20 dezenas.',
       'Apenas cotas com pagamento confirmado até o fechamento participam do rateio.',
       'Divisão do prêmio proporcional à quantidade de cotas pagas.',
       'Comprovantes digitalizados via OCR e auditáveis na plataforma.',
@@ -78,11 +78,11 @@ export const CATALOGO_MODALIDADES: Record<string, ModalidadeDetalhada> = {
     icone: '🌟',
     universoNumeros: 60,
     minimoDezenas: 6,
-    maximoDezenas: 15,
+    maximoDezenas: 20,
     qtdDezenasSorteadas: 6,
     valorApostaSimples: 6.0,
-    mesEvento: 'Dezembro (31/12)',
-    regraAcumulacao: 'Não acumula — rateio obrigatório nas faixas inferiores',
+    mesEvento: 'Edição 2026: sorteio em 01/01/2027 às 11h',
+    regraAcumulacao: 'Redistribuição especial conforme regulamento da Caixa',
     descricao: 'O maior prêmio do ano da Caixa. Não acumula: se não houver 6 acertos, divide na Quina.',
     estilo: {
       badgeBg: 'bg-amber-500/20',
@@ -97,8 +97,8 @@ export const CATALOGO_MODALIDADES: Record<string, ModalidadeDetalhada> = {
       { nome: 'Quadra', acertos: 4, descricao: 'Terceira Faixa (4 acertos)' },
     ],
     regrasPadrao: [
-      'Concurso especial de fim de ano (31/12) — O prêmio NÃO ACUMULA.',
-      'Se ninguém acertar as 6 dezenas, o montante total é dividido entre os acertadores da Quina.',
+      'Edição 2026: concurso 3100, sorteio anunciado para 01/01/2027 às 11h de Brasília.',
+      'Se ninguém acertar as 6 dezenas, o prêmio da faixa é dividido entre os acertadores da Quina.',
       'Rateio estritamente proporcional às cotas pagas até o prazo limite.',
       'Ata com hash SHA-256 e guarda física dos bilhetes pelo organizador.',
     ],
@@ -152,8 +152,8 @@ export const CATALOGO_MODALIDADES: Record<string, ModalidadeDetalhada> = {
     qtdDezenasSorteadas: 15,
     valorApostaSimples: 3.5,
     mesEvento: 'Setembro (07/09)',
-    regraAcumulacao: 'Não acumula — rateio obrigatório nas faixas inferiores',
-    descricao: 'Concurso especial de setembro da Lotofácil. Prêmio milionário que não acumula!',
+    regraAcumulacao: 'Redistribuição especial conforme regulamento da Caixa',
+    descricao: 'Concurso especial de setembro da Lotofácil. Prêmio milionário com regras próprias de redistribuição.',
     estilo: {
       badgeBg: 'bg-emerald-500/20',
       badgeText: 'text-yellow-300',
@@ -169,7 +169,7 @@ export const CATALOGO_MODALIDADES: Record<string, ModalidadeDetalhada> = {
       { nome: '11 Acertos', acertos: 11, descricao: 'Prêmio Fixo' },
     ],
     regrasPadrao: [
-      'Edição Especial de Setembro — NÃO ACUMULA.',
+      'Edição Especial de Setembro — Segue as regras de redistribuição do concurso especial.',
       'Caso ninguém acerte 15 dezenas, o prêmio divide entre os que acertarem 14 dezenas.',
       'Divisão estritamente proporcional às cotas pagas.',
     ],
@@ -187,7 +187,7 @@ export const CATALOGO_MODALIDADES: Record<string, ModalidadeDetalhada> = {
     qtdDezenasSorteadas: 5,
     valorApostaSimples: 3.0,
     regraAcumulacao: 'Acumula normalmente',
-    descricao: 'Sorteios diários de segunda a sábado. 5 a 15 dezenas entre 80 números.',
+    descricao: 'Consulte o calendário vigente da Caixa. 5 a 15 dezenas entre 80 números.',
     estilo: {
       badgeBg: 'bg-blue-500/15',
       badgeText: 'text-blue-300',
@@ -221,8 +221,8 @@ export const CATALOGO_MODALIDADES: Record<string, ModalidadeDetalhada> = {
     qtdDezenasSorteadas: 5,
     valorApostaSimples: 3.0,
     mesEvento: 'Junho (24/06)',
-    regraAcumulacao: 'Não acumula — rateio obrigatório nas faixas inferiores',
-    descricao: 'O grande bolão junino da Caixa. Prêmio milionário que não acumula no sorteio de São João.',
+    regraAcumulacao: 'Redistribuição especial conforme regulamento da Caixa',
+    descricao: 'O grande bolão junino da Caixa. Prêmio milionário com regras próprias de redistribuição.',
     estilo: {
       badgeBg: 'bg-orange-500/20',
       badgeText: 'text-orange-300',
@@ -238,7 +238,7 @@ export const CATALOGO_MODALIDADES: Record<string, ModalidadeDetalhada> = {
     ],
     regrasPadrao: [
       'Concurso especial em comemoração ao dia de São João (fim de junho).',
-      'NÃO ACUMULA: se ninguém acertar a Quina, divide entre os que acertarem a Quadra.',
+      'Segue as regras de redistribuição do concurso especial: se ninguém acertar a Quina, divide entre os que acertarem a Quadra.',
       'Rateio proporcional às cotas quitadas antes do sorteio.',
     ],
   },
@@ -290,7 +290,7 @@ export const CATALOGO_MODALIDADES: Record<string, ModalidadeDetalhada> = {
     qtdDezenasSorteadas: 6,
     valorApostaSimples: 3.0,
     mesEvento: 'Março/Abril (Sábado de Aleluia)',
-    regraAcumulacao: 'Não acumula — rateio obrigatório nas faixas inferiores',
+    regraAcumulacao: 'Redistribuição especial conforme regulamento da Caixa',
     descricao: 'Concurso especial da Dupla Sena realizado no sábado que antecede o Domingo de Páscoa.',
     estilo: {
       badgeBg: 'bg-purple-500/20',
@@ -307,7 +307,7 @@ export const CATALOGO_MODALIDADES: Record<string, ModalidadeDetalhada> = {
       { nome: 'Terno', acertos: 3, descricao: '3 acertos' },
     ],
     regrasPadrao: [
-      'Edição especial no sábado antes da Páscoa — NÃO ACUMULA.',
+      'Edição especial no sábado antes da Páscoa — Segue as regras de redistribuição do concurso especial.',
       'Se ninguém acertar 6 números no 1º sorteio, divide entre os que acertarem 5 dezenas.',
       'Rateio proporcional registrado em ata com SHA-256.',
     ],
@@ -355,3 +355,12 @@ export const GRUPOS_MODALIDADES = [
     opcoes: ['Dupla Sena', 'Dupla de Páscoa'],
   },
 ];
+
+// Fontes consultadas em 13/11/2026; preços e calendários podem mudar.
+export const LOTTERY_RULES_REVIEWED_AT = '2026-11-13';
+export const LOTTERY_SOURCES = {
+  'Mega-Sena':'https://loterias.caixa.gov.br/Paginas/Mega-Sena.aspx',
+  'Lotofácil':'https://loterias.caixa.gov.br/Paginas/Lotofacil.aspx',
+  'Quina':'https://loterias.caixa.gov.br/Paginas/Quina.aspx',
+  'Dupla Sena':'https://loterias.caixa.gov.br/Paginas/Dupla-Sena.aspx',
+};

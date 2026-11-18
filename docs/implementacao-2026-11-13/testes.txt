@@ -1,0 +1,43 @@
+
+> bolao-da-virada@0.0.0 test
+> tsx --test src/**/*.test.ts
+
+✔ analisarCoberturaBolao correctly calculates unique numbers and coverage % (2.8898ms)
+✔ gerarJogoEstrategico produces 6 to 15 unique numbers adhering to strategy (1.144ms)
+✔ combinacao C(n, k) calculations (1.5636ms)
+✔ conferirJogo on standard 6-number bet (1.721ms)
+✔ conferirJogo on 7-number bet with 5 hits (Caixa multi-prize desdobramento) (0.457ms)
+✔ calcularRateio restricts payout strictly to paid participants (22.9653ms)
+✔ maskPhone hides central digits for LGPD privacy (0.3702ms)
+✔ parseCaixaTicketText extracts valid Mega-Sena numbers from thermal ticket string (2.4342ms)
+✔ buildWhatsAppReminderGroupMessage formats reminder with pending counts and pix (16.9284ms)
+✔ conferirJogo on Lotofácil 16-number bet hitting 15 yields 1 of 15 and 15 of 14 (0.4333ms)
+✔ conferirJogo on Quina 7-number bet hitting 4 yields 3 Quadras, 12 Ternos and 6 Duques (0.3508ms)
+✔ parseCaixaTicketText parses Lotofácil and Quina sample tickets properly (0.7875ms)
+✔ TABELA_OFICIAL_CAIXA contains standard Caixa rules and costs (1.3062ms)
+✔ otimizarPlanoApostas allocates games without exceeding budget and minimizes change (0.7981ms)
+✔ calcularCronogramaSeguranca establishes clear safety buffers before lottery closing (3.8976ms)
+✔ simularCenariosPreBolao generates realistic and critical fallback plans (0.7544ms)
+✔ rebaixarJogoDezenas smoothly reduces bet size preserving core numbers (1.5909ms)
+✔ persistência após reabrir banco, autorização, privacidade, conflito e congelamento (112.7079ms)
+✔ prazo passado impede mudar pagamentos mesmo sem fechamento explícito (3.8058ms)
+✔ OCR ignora metadados e não inventa dezenas de datas (5.7649ms)
+✔ motor recusa duplicatas e aceita Mega com vinte dezenas (0.7028ms)
+✔ Lotofácil aplica valores vigentes para 12 e 13 acertos (0.4282ms)
+✔ rateio fecha 100 reais em centavos e mantém desempate estável (1.1944ms)
+✔ Caixa: falha não gera fallback, concurso incorreto é recusado e prêmio zero é preservado (1.7534ms)
+✔ Dupla Sena mantém dois sorteios e rateios independentes (0.5765ms)
+✔ manifesto inclui regras e conteúdo de comprovantes, SHA-256 é conhecido (22.2458ms)
+✔ maskPhone conceals sensitive digits according to LGPD (1.8227ms)
+✔ calculateSha256 produces valid 64-char hexadecimal digest (16.8015ms)
+✔ generateCanonicalManifest produces stable and sorted output (18.5364ms)
+✔ buildWhatsAppProofSubmissionUrl creates proper direct whatsapp link (0.3473ms)
+✔ buildWhatsAppIndividualParticipantLinkMessage formats participant invite message (0.2763ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1170.8706

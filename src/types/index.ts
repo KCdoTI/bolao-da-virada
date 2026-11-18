@@ -32,6 +32,9 @@ export interface Bolao {
   dezenas_sorteadas?: number[];
   hash_slug: string;
   regras?: string[];
+  data_sorteio?: string;
+  resultado?: ResultadoConcurso;
+  fechado_em?: string;
 }
 
 export interface Participante {
@@ -43,6 +46,23 @@ export interface Participante {
   status_pagamento: StatusPagamento;
   data_registro?: string;
   token_acesso?: string;
+  pago_em?: string;
+}
+
+export interface ResultadoConcurso {
+  modalidade: string;
+  concurso: number;
+  origem: 'caixa_oficial' | 'manual';
+  fonte?: string;
+  consultado_em: string;
+  dataApuracao: string;
+  sorteios: { dezenas: number[]; premiacao: PremiacaoFaixas }[];
+}
+
+export interface PoolState {
+  bolao: Bolao;
+  participantes: Participante[];
+  jogos: Jogo[];
 }
 
 export interface Jogo {
@@ -50,6 +70,7 @@ export interface Jogo {
   bolao_id: string;
   dezenas: number[]; // De 6 a 15 números (1-60)
   foto_url?: string;
+  foto_sha256?: string;
   criado_em: string;
   codigo_bilhete?: string;
 }

@@ -40,3 +40,30 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.5);
 }
+
+.page { max-width: 1152px; margin-inline: auto; padding-inline: 16px; }
+.card { background:white; border:1px solid #e2e8f0; border-radius:16px; padding:20px; min-width:0; }
+.btn { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:10px 14px; gap:8px; border-radius:10px; border:1px solid #cbd5e1; font-size:14px; font-weight:600; cursor:pointer; }
+.btn:hover { background:#e2e8f033; }
+.primary { background:#047857; color:white; border-color:#047857; }
+button:disabled { opacity:.5; cursor:not-allowed; }
+.number-ball { display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:50%; background:#d1fae5; color:#065f46; font-weight:700; }
+.error { padding:16px; border:1px solid #fca5a5; border-radius:12px; color:#991b1b; background:#fef2f2; }
+.app-dialog { width:min(640px, calc(100% - 24px)); max-height:90dvh; margin:auto; border:1px solid #cbd5e1; border-radius:20px; padding:24px; background:white; color:#0f172a; overflow-y:auto; }
+.app-dialog::backdrop { background:#020617b3; }
+.app-dialog label { display:block; font-size:14px; font-weight:500; }
+.app-dialog input,.app-dialog select,.app-dialog textarea { display:block; width:100%; border:1px solid #94a3b8; border-radius:8px; padding:10px; margin-top:6px; font:inherit; }
+:focus-visible { outline:3px solid #059669; outline-offset:3px; }
+td,th { padding:10px 8px; text-align:left; border-bottom:1px solid #e2e8f0; }
+@media(max-width:480px){.card{padding:16px}.app-dialog{padding:18px} }
+@media print {
+  body:has(.print-report) #root > * { visibility:hidden; }
+  body:has(.print-report) .app-dialog, body:has(.print-report) .app-dialog * { visibility:visible; }
+  body:has(.print-report) .app-dialog { position:absolute; inset:0; width:100%; max-width:none; max-height:none; overflow:visible; padding:0; margin:0; border:0; }
+  body:has(.print-report) .app-dialog > header, .print-hidden { display:none!important; }
+  .app-dialog::backdrop { display:none; }
+  .print-report { color:black; background:white; }
+  .print-report .overflow-x-auto { overflow:visible; }
+  .print-report tr,.print-report img { break-inside:avoid; }
+  @page { size:A4; margin:15mm; }
+}

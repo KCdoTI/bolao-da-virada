@@ -25,7 +25,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({
   const totalDezenas = jogos.reduce((acc, j) => acc + j.dezenas.length, 0);
 
   return (
-    <section aria-label="Resumo Financeiro do Bolão" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+    <section aria-label="Resumo Financeiro do Bolão" className="grid grid-cols-1 min-[390px]:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
       {/* 1. Total Arrecadado */}
       <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl shadow-xs border border-slate-200/90 dark:border-slate-800 flex flex-col justify-between min-w-0 transition-all duration-200 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md hover:-translate-y-0.5">
         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold">
@@ -68,7 +68,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({
           </div>
         </div>
         <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-          R$ {bolao.valor_cota.toFixed(2)} por cota
+          R$ {bolao.valor_cota.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} por cota
         </div>
       </div>
 
@@ -97,7 +97,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({
       {/* 4. Jogos Registrados */}
       <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl shadow-xs border border-slate-200/90 dark:border-slate-800 flex flex-col justify-between min-w-0 transition-all duration-200 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md hover:-translate-y-0.5">
         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold">
-          <span className="text-xs uppercase tracking-wider font-bold">Jogos Lotérica</span>
+          <span className="text-xs uppercase tracking-wider font-bold">Jogos cadastrados</span>
           <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-500/20 shrink-0">
             <Ticket size={16} />
           </div>

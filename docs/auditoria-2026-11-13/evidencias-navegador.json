@@ -1,0 +1,46 @@
+{
+  "data": "2026-11-13",
+  "nota": "Consolidação de resultados efetivamente observados nas ferramentas de navegador nesta auditoria. Alterações funcionais somente em localhost, com dados de teste.",
+  "producao": {
+    "url": "https://bolao-da-virada-hazel.vercel.app/",
+    "assetJs": "index-CjDFf1rG.js",
+    "medidasCss": [
+      {"viewport":1440,"documentScrollWidth":1515},
+      {"viewport":1280,"documentScrollWidth":1435},
+      {"viewport":768,"documentScrollWidth":1046},
+      {"viewport":390,"documentScrollWidth":437},
+      {"viewport":375,"documentScrollWidth":437}
+    ],
+    "origemOverflow": "Barra de ações do DashboardHeader, especialmente Novo Jogo; há também pressão horizontal no controle de abas.",
+    "capturas": ["producao-desktop.png", "producao-mobile-375.png"]
+  },
+  "persistenciaLocal": {
+    "alteracao": "Nome do bolão alterado pela interface para AUDITORIA LOCAL - 13 NOV",
+    "visivelDepoisDeSalvar": true,
+    "retidoDepoisDeRecarregar": true,
+    "requisicoesApiDuranteSalvamento": [],
+    "tituloEmOutroContextoDoNavegadorPeloLinkPublico": "Bolão da Mega — Gestão de Cotas",
+    "botaoPublicoAbrePainelComAdicionarCotista": true
+  },
+  "acessibilidadeVolante": {
+    "focoDentroDoDialogAoAbrir": false,
+    "escapeFecha": false
+  },
+  "ocrQuina": {
+    "amostra": "Bilhete 04 - Quina de São João (5 dezenas)",
+    "dezenasDetectadas": [12,28,45,67,79],
+    "avisos": ["As dezenas da Mega-Sena devem estar estritamente entre 01 e 60", "Mínimo de 6 dezenas para aposta oficial da Caixa"],
+    "botaoAprovarDesabilitado": true
+  },
+  "demonstracao": {
+    "premioApresentado": "R$ 1.100.861.600,00",
+    "publicoApresentaSorteioConcluido": true,
+    "publicoApresentaStatusPorPessoa": ["Confirmado", "Em reserva"]
+  },
+  "limites": [
+    "Não foram enviados mensagens, pagamentos ou registros para a produção.",
+    "Não houve teste em aparelho físico nem medição completa de Lighthouse.",
+    "OCR validado no parser e nos exemplos da interface; precisão com bilhetes físicos não foi medida.",
+    "O servidor local foi encerrado pela interrupção da sessão; os resultados anteriores foram preservados."
+  ]
+}

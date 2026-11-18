@@ -1,0 +1,21 @@
+import type { Plugin } from "vite";
+import express from "express";
+import handler from "../api/bolao";
+import receiptHandler from "../api/comprovante";
+export function poolApi(): Plugin {
+  return {
+    name: "pool-api",
+    configureServer(server) {
+      const api = express();
+      api.use(express.json({ limit: "3500kb" }));
+      api.all("/api/bolao", handler);
+      api.all("/api/comprovante", receiptHandler);
+      api.use((err: any, _req: any, res: any, _next: any) =>
+        res
+          .status(err.status || 500)
+          .json({ error: "Requisição inválida ou muito grande." }),
+      );
+      server.middlewares.use(api);
+    },
+  };
+}

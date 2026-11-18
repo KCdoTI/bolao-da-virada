@@ -1,0 +1,34 @@
+
+> bolao-da-virada@0.0.0 test
+> tsx --test src/**/*.test.ts
+
+✔ analisarCoberturaBolao correctly calculates unique numbers and coverage % (1.9823ms)
+✔ gerarJogoEstrategico produces 6 to 15 unique numbers adhering to strategy (1.6414ms)
+✔ combinacao C(n, k) calculations (2.4422ms)
+✔ conferirJogo on standard 6-number bet (0.8848ms)
+✔ conferirJogo on 7-number bet with 5 hits (Caixa multi-prize desdobramento) (0.3029ms)
+✔ calcularRateio restricts payout strictly to paid participants (0.5035ms)
+✔ maskPhone hides central digits for LGPD privacy (0.369ms)
+✔ parseCaixaTicketText extracts valid Mega-Sena numbers from thermal ticket string (2.3798ms)
+✔ buildWhatsAppReminderGroupMessage formats reminder with pending counts and pix (35.0668ms)
+✔ conferirJogo on Lotofácil 16-number bet hitting 15 yields 1 of 15 and 15 of 14 (0.521ms)
+✔ conferirJogo on Quina 7-number bet hitting 4 yields 3 Quadras, 12 Ternos and 6 Duques (0.5276ms)
+✔ parseCaixaTicketText parses Lotofácil and Quina sample tickets properly (1.0895ms)
+✔ TABELA_OFICIAL_CAIXA contains standard Caixa rules and costs (1.4041ms)
+✔ otimizarPlanoApostas allocates games without exceeding budget and minimizes change (1.1225ms)
+✔ calcularCronogramaSeguranca establishes clear safety buffers before lottery closing (2.4105ms)
+✔ simularCenariosPreBolao generates realistic and critical fallback plans (0.6896ms)
+✔ rebaixarJogoDezenas smoothly reduces bet size preserving core numbers (1.6059ms)
+✔ maskPhone conceals sensitive digits according to LGPD (2.7735ms)
+✔ calculateSha256 produces valid 64-char hexadecimal digest (20.6386ms)
+✔ generateCanonicalManifest produces stable and sorted output (18.847ms)
+✔ buildWhatsAppProofSubmissionUrl creates proper direct whatsapp link (0.2569ms)
+✔ buildWhatsAppIndividualParticipantLinkMessage formats participant invite message (0.1852ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 522.5687

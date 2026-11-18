@@ -4,6 +4,7 @@ import { Jogo } from '../types';
 import { TicketViewerModal } from './TicketViewerModal';
 
 interface GamesListProps {
+  readOnly?: boolean;
   jogos: Jogo[];
   onOpenNovoJogo: () => void;
   onRemoveJogo: (id: string) => void;
@@ -11,6 +12,7 @@ interface GamesListProps {
 }
 
 export const GamesList: React.FC<GamesListProps> = ({
+  readOnly = false,
   jogos,
   onOpenNovoJogo,
   onRemoveJogo,
@@ -58,17 +60,17 @@ export const GamesList: React.FC<GamesListProps> = ({
           {onOpenAiConsultant && (
             <button
               type="button"
-              onClick={onOpenAiConsultant}
+              disabled={readOnly} onClick={onOpenAiConsultant}
               className="flex items-center gap-1.5 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 border border-amber-500/30 text-xs font-semibold py-2 px-3.5 rounded-xl transition-all duration-150 active:scale-[0.98] shadow-xs"
             >
               <Sparkles size={14} className="text-amber-400" />
-              <span>Consultor IA & Gerador</span>
+              <span>Gerar números & Gerador</span>
             </button>
           )}
 
           <button
             type="button"
-            onClick={onOpenNovoJogo}
+            disabled={readOnly} onClick={onOpenNovoJogo}
             className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold py-2 px-3.5 rounded-xl transition-all duration-150 active:scale-[0.98] shadow-xs"
           >
             <PlusCircle size={15} />
@@ -131,11 +133,11 @@ export const GamesList: React.FC<GamesListProps> = ({
           <Ticket size={36} className="mx-auto text-slate-300 dark:text-slate-700" />
           <p className="text-sm font-medium">Nenhum jogo cadastrado ainda no bolão.</p>
           <p className="text-xs text-slate-500">
-            Use o volante manual, tire uma foto com nosso leitor OCR ou use o Consultor IA!
+            Use o volante manual, tire uma foto com nosso leitor OCR ou use o Gerar números!
           </p>
           <button
             type="button"
-            onClick={onOpenNovoJogo}
+            disabled={readOnly} onClick={onOpenNovoJogo}
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs"
           >
             <PlusCircle size={15} />
@@ -188,7 +190,7 @@ export const GamesList: React.FC<GamesListProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => onRemoveJogo(jogo.id)}
+                        disabled={readOnly} onClick={() => onRemoveJogo(jogo.id)}
                         aria-label={`Excluir jogo #${gameNumber}`}
                         className="p-1 text-slate-300 hover:text-red-500 rounded-md transition"
                         title="Excluir aposta"

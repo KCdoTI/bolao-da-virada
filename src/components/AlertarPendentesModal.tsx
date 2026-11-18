@@ -19,6 +19,7 @@ import {
   buildWhatsAppDirectUrl,
   maskPhone,
 } from '../utils/transparency';
+import { useModalFocus } from '../hooks/useModalFocus';
 
 interface AlertarPendentesModalProps {
   isOpen: boolean;
@@ -40,6 +41,7 @@ export const AlertarPendentesModal: React.FC<AlertarPendentesModalProps> = ({
   const [webhookUrl, setWebhookUrl] = useState('http://192.168.1.15:5678/webhook/bolao-lembrete');
   const [webhookStatus, setWebhookStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [webhookMessage, setWebhookMessage] = useState('');
+  useModalFocus(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -47,9 +49,8 @@ export const AlertarPendentesModal: React.FC<AlertarPendentesModalProps> = ({
   const totalCotasPendentes = pendentes.reduce((acc, p) => acc + p.qtd_cotas, 0);
   const valorTotalPendente = totalCotasPendentes * bolao.valor_cota;
 
-  const publicUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}${window.location.pathname}#${bolao.id}`
-    : `https://bolao-da-virada.app/#${bolao.id}`;
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://bolao-da-virada.app';
+  const publicUrl = `${baseUrl}/#b-${bolao.hash_slug}`;
 
   const groupMessage = buildWhatsAppReminderGroupMessage(bolao, pendentes, publicUrl);
 

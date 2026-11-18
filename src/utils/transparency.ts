@@ -61,12 +61,12 @@ Modalidade: ${bolao.modalidade} (Concurso #${bolao.concurso_numero})
 
 [Status de Arrecadação]
 • Cotas confirmadas: ${cotasPagas}/${totalCotas} (${totalCotas > 0 ? Math.round((cotasPagas / totalCotas) * 100) : 0}%)
-• Jogos autenticados: ${jogos.length} apostas
+• Jogos registrados: ${jogos.length} apostas
 
 [Painel de Transparência e Auditoria (sem login)]
 ${publicUrl}
 
-Comprovantes autenticados pela Caixa e conferência automatizada pós-sorteio.`;
+Confira os recibos originais com o organizador.`;
 }
 
 /**
@@ -80,10 +80,10 @@ export function buildWhatsAppPayoutMessage(
   valorAReceber: number,
   chavePixOrganizador: string
 ): string {
-  return `*COMUNICADO OFICIAL DE RATEIO — ${bolaoNome.toUpperCase()}*
+  return `*DEMONSTRATIVO DE RATEIO — ${bolaoNome.toUpperCase()}*
 Participante: ${nome}
 
-O bolão obteve premiação oficial no concurso com valor total de R$ ${totalPremioBolao.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.
+O bolão obteve premiação calculada no concurso com valor total de R$ ${totalPremioBolao.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.
 
 [Demonstrativo Individual]
 • Cotas pagas vinculadas: ${cotasPagas}
@@ -185,7 +185,7 @@ export function buildWhatsAppIndividualParticipantLinkMessage(
 • Status Atual: ${isPago ? 'Confirmado e Pago' : 'Aguardando Pagamento PIX'}
 • Chave PIX do Organizador: ${bolao.chave_pix_organizador}
 
-Acesse seu painel pessoal de transparência (bilhetes autenticados e conferência ao vivo):
+Acesse seu painel pessoal de transparência (bilhetes registrados e conferência ao vivo):
 ${participantPersonalUrl}`;
 }
 
@@ -226,6 +226,7 @@ export function generateCanonicalManifest(
       id: j.id,
       dezenas: [...j.dezenas].sort((x, y) => x - y),
       codigo: j.codigo_bilhete || '',
+      comprovante: j.foto_sha256 || j.foto_url || '',
     }));
 
   const participantesConfirmados = participantes
@@ -237,6 +238,10 @@ export function generateCanonicalManifest(
     }));
 
   return JSON.stringify({
+    versao_manifesto: 2,
+    regras: bolao.regras || [],
+    fechado_em: bolao.fechado_em || null,
+    resultado: bolao.resultado || null,
     bolao_id: bolao.id,
     concurso: bolao.concurso_numero,
     modalidade: bolao.modalidade,
@@ -261,16 +266,7 @@ export async function calculateSha256(text: string): Promise<string> {
     return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
   }
 
-  // Algoritmo FNV-1a expandido de 64 caracteres se nada mais estiver disponível
-  let h1 = 0x811c9dc5;
-  let h2 = 0xcbf29ce4;
-  for (let i = 0; i < text.length; i++) {
-    h1 = Math.imul(h1 ^ text.charCodeAt(i), 0x01000193);
-    h2 = Math.imul(h2 ^ text.charCodeAt(i), 0x01000193);
-  }
-  const part1 = (h1 >>> 0).toString(16).padStart(8, '0');
-  const part2 = (h2 >>> 0).toString(16).padStart(8, '0');
-  return (part1 + part2).repeat(4).slice(0, 64);
+  throw new Error('SHA-256 indisponível. Abra o aplicativo por HTTPS ou localhost.');
 }
 
 /**

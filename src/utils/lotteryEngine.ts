@@ -1,4 +1,5 @@
 import { Jogo, Participante, PremiacaoFaixas, JogoConferido, RateioCotista, DetalheFaixaPremiacao } from '../types';
+import { validarDezenas } from './validation';
 
 /**
  * Análise Combinatória C(n, k) = n! / (k! * (n - k)!)
@@ -31,6 +32,9 @@ export function conferirJogo(
   valores: PremiacaoFaixas,
   modalidade: string = 'Mega-Sena'
 ): JogoConferido {
+  validarDezenas(jogo.dezenas, modalidade);
+  validarDezenas(dezenasSorteadas, modalidade, true);
+  if (Object.values(valores).some(v => !Number.isFinite(v) || v < 0)) throw new Error('Premiação inválida.');
   const acertos = jogo.dezenas
     .filter((d) => dezenasSorteadas.includes(d))
     .sort((a, b) => a - b);
@@ -69,8 +73,8 @@ export function conferirJogo(
     // Prêmios fixos oficiais da Caixa para 11, 12 e 13
     const v15 = valores.pontos15 || 0;
     const v14 = valores.pontos14 || 0;
-    const v13 = valores.pontos13 !== undefined ? valores.pontos13 : 32.0;
-    const v12 = valores.pontos12 !== undefined ? valores.pontos12 : 13.0;
+    const v13 = valores.pontos13 !== undefined ? valores.pontos13 : 35.0;
+    const v12 = valores.pontos12 !== undefined ? valores.pontos12 : 14.0;
     const v11 = valores.pontos11 !== undefined ? valores.pontos11 : 7.0;
 
     if (pontos15 > 0) detalhesFaixas.push({ faixaNome: '15 Acertos', acertosNecessarios: 15, qtdPremios: pontos15, valorUnitario: v15, subtotal: pontos15 * v15 });
@@ -154,8 +158,18 @@ export function calcularRateio(
   participantes: Participante[],
   valorPremioTotal: number
 ): RateioCotista[] {
+  if (!Number.isFinite(valorPremioTotal) || valorPremioTotal < 0 || !Number.isSafeInteger(Math.round(valorPremioTotal * 100))) throw new Error('Total inválido.');
+  if (participantes.some(p => !Number.isSafeInteger(p.qtd_cotas) || p.qtd_cotas < 1 || p.qtd_cotas > 1000000) || new Set(participantes.map(p => p.id)).size !== participantes.length) throw new Error('Cotas ou participantes inválidos.');
   const cotistasPagos = participantes.filter((p) => p.status_pagamento === 'Pago');
   const totalCotasPagas = cotistasPagos.reduce((acc, p) => acc + p.qtd_cotas, 0);
+  const centavos = BigInt(Math.round(valorPremioTotal * 100));
+  const parcelas = cotistasPagos.map(p => {
+    const produto = centavos * BigInt(p.qtd_cotas);
+    return { id: p.id, valor: produto / BigInt(totalCotasPagas), resto: produto % BigInt(totalCotasPagas) };
+  });
+  const ordem = [...parcelas].sort((a, b) => a.resto === b.resto ? a.id.localeCompare(b.id, 'en') : a.resto > b.resto ? -1 : 1);
+  const residuo = Number(centavos - parcelas.reduce((s, p) => s + p.valor, 0n));
+  if (totalCotasPagas) for (let i = 0; i < residuo; i++) ordem[i].valor++;
 
   const valorPorCota =
     totalCotasPagas > 0 && valorPremioTotal > 0
@@ -173,7 +187,7 @@ export function calcularRateio(
     }
 
     const porcentagem = (p.qtd_cotas / totalCotasPagas) * 100;
-    const valorAReceber = p.qtd_cotas * valorPorCota;
+    const valorAReceber = Number(parcelas.find(v => v.id === p.id)!.valor) / 100;
 
     return {
       ...p,

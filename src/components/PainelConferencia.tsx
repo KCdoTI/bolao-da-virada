@@ -1,611 +1,306 @@
-import React, { useState } from 'react';
-import {
-  Trophy,
-  RotateCcw,
-  SlidersHorizontal,
-  Send,
-  CheckCircle2,
-  Sparkles,
-  Coins,
-  Smartphone,
-  ExternalLink,
-  Receipt,
-  AlertCircle,
-  HelpCircle,
-} from 'lucide-react';
-import confetti from 'canvas-confetti';
-import { Jogo, Participante, PremiacaoFaixas } from '../types';
-import { conferirJogo, calcularRateio } from '../utils/lotteryEngine';
-import { fetchMegaSenaDraw } from '../services/caixaLotteryService';
-import { buildWhatsAppPayoutMessage } from '../utils/transparency';
-import { TicketViewerModal } from './TicketViewerModal';
-import { getModalidadeInfo } from '../constants/lotteryCatalog';
-
-interface PainelConferenciaProps {
-  bolaoNome: string;
-  concursoNumero: number;
-  chavePixOrganizador: string;
-  jogos: Jogo[];
-  participantes: Participante[];
-  dezenasSorteadas: number[];
-  onUpdateDezenasSorteadas: (dezenas: number[]) => void;
-  modalidade?: string;
+import React, { useState } from "react";
+import type {
+  Bolao,
+  Jogo,
+  Participante,
+  PremiacaoFaixas,
+  ResultadoConcurso,
+} from "../types";
+import { getModalidadeInfo } from "../constants/lotteryCatalog";
+import { validarDezenas } from "../utils/validation";
+import { conferirJogo, calcularRateio } from "../utils/lotteryEngine";
+export const currency = (v: number) =>
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+export function summarize(jogos: Jogo[], resultado?: ResultadoConcurso) {
+  return resultado
+    ? jogos.flatMap((j) =>
+        resultado.sorteios.map((s, index) => ({
+          ...conferirJogo(j, s.dezenas, s.premiacao, resultado.modalidade),
+          sorteio: index + 1,
+        })),
+      )
+    : [];
 }
-
-export const PainelConferencia: React.FC<PainelConferenciaProps> = ({
-  bolaoNome,
-  concursoNumero,
-  chavePixOrganizador,
+export const keysByBase: Record<string, (keyof PremiacaoFaixas)[]> = {
+  "Mega-Sena": ["sena", "quina", "quadra"],
+  Quina: ["quina", "quadra", "terno", "duque"],
+  Lotofácil: ["pontos15", "pontos14", "pontos13", "pontos12", "pontos11"],
+  "Dupla Sena": ["sena", "quina", "quadra", "terno"],
+};
+export function ResultadoView({
+  bolao,
+  jogos,
+}: {
+  bolao: Bolao;
+  jogos: Jogo[];
+}) {
+  const result = bolao.resultado;
+  if (!result)
+    return (
+      <p className="card">
+        Aguardando apuração. Nenhum resultado foi informado.
+      </p>
+    );
+  const rows = summarize(jogos, result);
+  const total = rows.reduce((s, j) => s + j.premiacaoCalculada.valorTotal, 0);
+  return (
+    <section className="card space-y-4">
+      <h2 className="text-xl font-bold">
+        {result.origem === "caixa_oficial"
+          ? "Resultado consultado na Caixa"
+          : "Conferência manual — não verificada pela Caixa"}
+      </h2>
+      <p>
+        {result.modalidade} · Concurso {result.concurso} · {result.dataApuracao}
+      </p>
+      {result.sorteios.map((draw, i) => (
+        <div key={i}>
+          <p className="mb-2 font-semibold">{i + 1}º sorteio</p>
+          <div className="flex flex-wrap gap-2">
+            {draw.dezenas.map((n) => (
+              <span key={n} className="number-ball">
+                {String(n).padStart(2, "0")}
+              </span>
+            ))}
+          </div>
+          <p className="text-sm mt-3">
+            {Object.entries(draw.premiacao)
+              .map(([k, v]) => k + ": " + currency(v))
+              .join(" · ")}
+          </p>
+        </div>
+      ))}
+      <p className="text-2xl font-bold text-emerald-700">
+        Total calculado: {currency(total)}
+      </p>
+      <p className="text-sm">
+        O cálculo considera as dezenas cadastradas. Confira o recibo original e
+        as condições de resgate na Caixa.
+      </p>
+      {result.fonte && (
+        <a
+          className="underline break-all"
+          href={result.fonte}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Fonte da consulta
+        </a>
+      )}
+      <p className="text-xs">
+        Registrado em {new Date(result.consultado_em).toLocaleString("pt-BR")}
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <caption className="sr-only">
+            Conferência dos jogos por sorteio
+          </caption>
+          <thead>
+            <tr>
+              <th>Jogo</th>
+              <th>Sorteio</th>
+              <th>Acertos</th>
+              <th>Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i}>
+                <td>{jogos.findIndex((j) => j.id === r.jogoId) + 1}</td>
+                <td>{r.sorteio}</td>
+                <td>{r.totalAcertos}</td>
+                <td>{currency(r.premiacaoCalculada.valorTotal)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+export function PainelConferencia({
+  bolao,
   jogos,
   participantes,
-  dezenasSorteadas,
-  onUpdateDezenasSorteadas,
-  modalidade = 'Mega-Sena',
-}) => {
-  const [modoManual, setModoManual] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [apiFeedback, setApiFeedback] = useState<string | null>(null);
-
-  const [premios, setPremios] = useState<PremiacaoFaixas>({
-    sena: 550000000,
-    quina: 70000,
-    quadra: 1200,
-  });
-
-  const [selectedTicket, setSelectedTicket] = useState<{
-    open: boolean;
-    imageUrl?: string;
-    gameIndex: number;
-    dezenas: number[];
-    codigo?: string;
-  }>({
-    open: false,
-    gameIndex: 0,
-    dezenas: [],
-  });
-
-  // Busca na API da Caixa ou Fallback
-  const handleBuscarOficial = async () => {
-    setLoading(true);
-    setApiFeedback(null);
-    try {
-      const data = await fetchMegaSenaDraw(concursoNumero);
-      if (data.dezenas && data.dezenas.length === 6) {
-        onUpdateDezenasSorteadas(data.dezenas);
-        if (data.premiacao) {
-          setPremios(data.premiacao);
-        }
-        setApiFeedback(
-          data.origem === 'caixa_oficial'
-            ? 'Resultado oficial sincronizado com sucesso da Caixa!'
-            : 'Resultado obtido via base de contingência da Mega da Virada.'
-        );
-      }
-    } catch {
-      setApiFeedback('Não foi possível conectar aos servidores da Caixa. Ajuste manualmente abaixo.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDezenaManualChange = (index: number, val: string) => {
-    const num = parseInt(val, 10);
-    const novas = [...dezenasSorteadas];
-    novas[index] = isNaN(num) ? 0 : Math.min(60, Math.max(1, num));
-    onUpdateDezenasSorteadas(novas);
-  };
-
-  // Motor de Conferência com cálculo combinatório multi-loterias
-  const jogosConferidos = jogos.map((j) => conferirJogo(j, dezenasSorteadas, premios, modalidade));
-
-  const isLoto = modalidade.toLowerCase().includes('lotofácil') || modalidade.toLowerCase().includes('lotofacil');
-  const isQuina = modalidade.toLowerCase().includes('quina');
-
-  const totalSenas = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.senas || 0), 0);
-  const totalQuinas = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.quinas || 0), 0);
-  const totalQuadras = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.quadras || 0), 0);
-  const totalTernos = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.ternos || 0), 0);
-  const totalDuques = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.duques || 0), 0);
-  const totalP15 = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.pontos15 || 0), 0);
-  const totalP14 = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.pontos14 || 0), 0);
-  const totalP13 = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.pontos13 || 0), 0);
-  const totalP12 = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.pontos12 || 0), 0);
-  const totalP11 = jogosConferidos.reduce((acc, j) => acc + (j.premiacaoCalculada.pontos11 || 0), 0);
-  const totalPremioBolao = jogosConferidos.reduce(
-    (acc, j) => acc + j.premiacaoCalculada.valorTotal,
-    0
+  onSave,
+  onImport,
+  busy,
+}: {
+  bolao: Bolao;
+  jogos: Jogo[];
+  participantes: Participante[];
+  onSave: (r: ResultadoConcurso) => Promise<boolean>;
+  onImport: () => Promise<boolean>;
+  busy: boolean;
+}) {
+  const info = getModalidadeInfo(bolao.modalidade);
+  const count = info.modalidadeBase === "Dupla Sena" ? 2 : 1;
+  const keys = keysByBase[info.modalidadeBase];
+  const [numbers, setNumbers] = useState<string[]>(Array(count).fill(""));
+  const [prizes, setPrizes] = useState<PremiacaoFaixas[]>(
+    Array.from({ length: count }, () => ({})),
   );
-
-  // Rateio estritamente restrito a cotistas com pagamento confirmado
-  const rateio = calcularRateio(participantes, totalPremioBolao);
-  const cotistasPagos = participantes.filter((p) => p.status_pagamento === 'Pago');
-  const totalCotasPagas = cotistasPagos.reduce((acc, p) => acc + p.qtd_cotas, 0);
-
-  const dispararConfetes = () => {
+  const [date, setDate] = useState("");
+  const [error, setError] = useState("");
+  const [manual, setManual] = useState(false);
+  const total = summarize(jogos, bolao.resultado).reduce(
+    (s, j) => s + j.premiacaoCalculada.valorTotal,
+    0,
+  );
+  const frozen =
+    !!bolao.fechado_em || Date.now() >= Date.parse(bolao.data_limite);
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
     try {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
+      const sorteios = numbers.map((s, i) => {
+        const dezenas = s
+          .trim()
+          .split(/[\s,;]+/)
+          .map(Number);
+        validarDezenas(dezenas, bolao.modalidade, true);
+        return { dezenas, premiacao: prizes[i] };
       });
-    } catch {
-      // Ignora caso canvas não esteja disponível
+      if (
+        keys.some((k) =>
+          prizes.some(
+            (p) =>
+              typeof p[k] !== "number" || !Number.isFinite(p[k]) || p[k]! < 0,
+          ),
+        )
+      )
+        throw new Error(
+          "Preencha todos os valores, inclusive os que são zero.",
+        );
+      if (
+        await onSave({
+          modalidade: bolao.modalidade,
+          concurso: bolao.concurso_numero,
+          origem: "manual",
+          consultado_em: new Date().toISOString(),
+          dataApuracao: date,
+          sorteios,
+        })
+      )
+        setManual(false);
+    } catch (e) {
+      setError((e as Error).message);
     }
-  };
-
-  const enviarWhatsAppCotista = (p: typeof rateio[0]) => {
-    const rawMsg = buildWhatsAppPayoutMessage(
-      p.nome,
-      bolaoNome,
-      totalPremioBolao,
-      p.qtd_cotas,
-      p.valorAReceber,
-      chavePixOrganizador
-    );
-    const encoded = encodeURIComponent(rawMsg);
-    window.open(`https://api.whatsapp.com/send?phone=55${p.telefone.replace(/\D/g, '')}&text=${encoded}`, '_blank');
-  };
-
+  }
   return (
-    <div className="space-y-6">
-      {/* Bloco de Sorteio e Dezenas */}
-      <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-xs border border-slate-200/80 dark:border-slate-800">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-slate-900 dark:text-slate-100 text-base">
-                Concurso Oficial: #{concursoNumero}
-              </span>
-              <span className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
-                Mega da Virada
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Motor de conferência oficial da Caixa com desdobramento matemático para apostas de 6 a 15 números.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setModoManual(!modoManual)}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
-            >
-              <SlidersHorizontal size={14} />
-              <span>{modoManual ? 'Fixar Dezenas' : 'Simulação Manual'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleBuscarOficial}
-              disabled={loading}
-              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition active:scale-95 disabled:opacity-50 shadow-xs"
-            >
-              <RotateCcw size={14} className={loading ? 'animate-spin' : ''} />
-              <span>Buscar da Caixa</span>
-            </button>
-          </div>
-        </div>
-
-        {apiFeedback && (
-          <div className="mt-3 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2">
-            <CheckCircle2 size={15} />
-            <span>{apiFeedback}</span>
-          </div>
+    <div className="space-y-5">
+      <div className="card space-y-3">
+        <h2 className="text-xl font-bold">
+          Conferência do concurso {bolao.concurso_numero}
+        </h2>
+        <p>
+          Os valores são salvos no bolão e compartilhados com os participantes.
+        </p>
+        {!frozen && (
+          <p className="text-amber-800">
+            Feche as participações antes de apurar o concurso.
+          </p>
         )}
-
-        {/* Display das 6 Dezenas Sorteadas */}
-        <div className="pt-5 flex flex-col items-center">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
-            Dezenas Sorteadas no Concurso
-          </span>
-
-          <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
-            {dezenasSorteadas.map((dezena, idx) =>
-              modoManual ? (
-                <input
-                  key={idx}
-                  type="number"
-                  min={1}
-                  max={60}
-                  value={dezena || ''}
-                  aria-label={`Dezena sorteada número ${idx + 1}`}
-                  onChange={(e) => handleDezenaManualChange(idx, e.target.value)}
-                  className="w-12 h-12 text-center text-lg font-black rounded-xl border-2 border-emerald-500 bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-400 shadow-xs"
-                />
-              ) : (
-                <div
-                  key={idx}
-                  className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-white font-black text-lg flex items-center justify-center shadow-md shadow-emerald-700/20 ring-4 ring-emerald-100 dark:ring-emerald-950/60 select-none"
-                >
-                  {dezena < 10 ? `0${dezena}` : dezena}
+        <div className="flex flex-wrap gap-2">
+          <button
+            className="btn primary"
+            disabled={!frozen || busy}
+            onClick={() => void onImport()}
+          >
+            Consultar Caixa
+          </button>
+          <button
+            className="btn"
+            disabled={!frozen || busy}
+            onClick={() => setManual(!manual)}
+          >
+            Conferência manual
+          </button>
+        </div>
+        {manual && (
+          <form onSubmit={submit} className="space-y-4">
+            <label>
+              Data da apuração
+              <input
+                required
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </label>
+            {Array.from({ length: count }, (_, i) => (
+              <fieldset key={i} className="space-y-3">
+                <legend>{i + 1}º sorteio</legend>
+                <label>
+                  {info.qtdDezenasSorteadas} dezenas, separadas por espaço
+                  <input
+                    required
+                    value={numbers[i]}
+                    onChange={(e) =>
+                      setNumbers(
+                        numbers.map((v, k) => (k === i ? e.target.value : v)),
+                      )
+                    }
+                  />
+                </label>
+                <div className="grid sm:grid-cols-3 gap-3">
+                  {keys.map((k) => (
+                    <label key={k}>
+                      Prêmio por aposta: {k}
+                      <input
+                        required
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={prizes[i][k] ?? ""}
+                        onChange={(e) =>
+                          setPrizes(
+                            prizes.map((p, index) =>
+                              index === i
+                                ? {
+                                    ...p,
+                                    [k]:
+                                      e.target.value === ""
+                                        ? undefined
+                                        : Number(e.target.value),
+                                  }
+                                : p,
+                            ),
+                          )
+                        }
+                      />
+                    </label>
+                  ))}
                 </div>
-              )
-            )}
-          </div>
-
-          {modoManual && (
-            <p className="text-[11px] text-slate-400 mt-2 text-center">
-              Dica: Digite 6 dezenas (1 a 60) para simular instantaneamente os acertos do bolão.
+              </fieldset>
+            ))}
+            <p>
+              Uma entrada manual será identificada como não verificada em todas
+              as telas.
             </p>
-          )}
-        </div>
-      </div>
-
-      {/* Cards de Premiação do Bolão */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Card do Prêmio Total */}
-        <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 border border-emerald-600/40 text-white p-5 rounded-2xl shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
-              Prêmio Total do Bolão
-            </span>
-            <Trophy size={20} className="text-emerald-400" />
-          </div>
-          <div className="my-3">
-            <div className="text-2xl sm:text-3xl font-black font-mono tabular-nums leading-none text-white">
-              R$ {totalPremioBolao.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-            <div className="text-xs text-slate-300 mt-1.5 font-medium">
-              {totalPremioBolao > 0 && totalCotasPagas > 0
-                ? `R$ ${(totalPremioBolao / totalCotasPagas).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} por cota paga`
-                : 'Aguardando divulgação dos números oficiais'}
-            </div>
-          </div>
-          {totalPremioBolao > 0 && (
-            <button
-              type="button"
-              onClick={dispararConfetes}
-              className="mt-1 w-full py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5"
-            >
-              <Sparkles size={14} />
-              <span>Celebrar Premiação do Grupo</span>
+            {error && <p role="alert">{error}</p>}
+            <button className="btn primary" disabled={busy}>
+              Salvar conferência manual
             </button>
-          )}
-        </div>
-
-        {/* Faixas Dinâmicas de Premiação Multi-Loterias */}
-        {isLoto ? (
-          <>
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                <span>15 Pontos (Máximo)</span>
-                <Sparkles size={16} className="text-amber-500" />
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
-                  {totalP15}
-                </div>
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
-                  R$ {(premios.pontos15 || 1500000).toLocaleString('pt-BR')} estimado
-                </span>
-              </div>
-              <span className="text-[11px] text-slate-400">Faixa principal da Lotofácil</span>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                <span>14 Pontos</span>
-                <CheckCircle2 size={16} className="text-blue-500" />
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
-                  {totalP14}
-                </div>
-                <span className="text-xs text-blue-600 dark:text-blue-400 font-bold block mt-0.5">
-                  R$ {(premios.pontos14 || 1500).toLocaleString('pt-BR')} estimado
-                </span>
-              </div>
-              <span className="text-[11px] text-slate-400">Segunda faixa da Lotofácil</span>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                <span>11 a 13 Pontos (Fixos)</span>
-                <CheckCircle2 size={16} className="text-emerald-500" />
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
-                  {totalP13 + totalP12 + totalP11}
-                </div>
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
-                  R$ 7, R$ 13 e R$ 32 fixos
-                </span>
-              </div>
-              <span className="text-[11px] text-slate-400">Prêmios de recuperação garantidos</span>
-            </div>
-          </>
-        ) : isQuina ? (
-          <>
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                <span>Quina (5 acertos)</span>
-                <Sparkles size={16} className="text-amber-500" />
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
-                  {totalQuinas}
-                </div>
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
-                  R$ {(premios.quina || 20000000).toLocaleString('pt-BR')} cada
-                </span>
-              </div>
-              <span className="text-[11px] text-slate-400">Prêmio principal da Quina</span>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                <span>Quadra (4 acertos)</span>
-                <CheckCircle2 size={16} className="text-blue-500" />
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
-                  {totalQuadras}
-                </div>
-                <span className="text-xs text-blue-600 dark:text-blue-400 font-bold block mt-0.5">
-                  R$ {(premios.quadra || 8000).toLocaleString('pt-BR')} cada
-                </span>
-              </div>
-              <span className="text-[11px] text-slate-400">Segunda faixa da Quina</span>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                <span>Ternos e Duques</span>
-                <CheckCircle2 size={16} className="text-emerald-500" />
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
-                  {totalTernos + totalDuques}
-                </div>
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
-                  {totalTernos} ternos / {totalDuques} duques
-                </span>
-              </div>
-              <span className="text-[11px] text-slate-400">Inclui múltiplos de desdobramento</span>
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Senas */}
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                <span>Senas (6 acertos)</span>
-                <Sparkles size={16} className="text-amber-500" />
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
-                  {totalSenas}
-                </div>
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
-                  R$ {(premios.sena || 0).toLocaleString('pt-BR')} cada
-                </span>
-              </div>
-              <span className="text-[11px] text-slate-400">Prêmio principal da Mega</span>
-            </div>
-
-            {/* Quinas */}
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                <span>Quinas (5 acertos)</span>
-                <CheckCircle2 size={16} className="text-blue-500" />
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
-                  {totalQuinas}
-                </div>
-                <span className="text-xs text-blue-600 dark:text-blue-400 font-bold block mt-0.5">
-                  R$ {(premios.quina || 0).toLocaleString('pt-BR')} cada
-                </span>
-              </div>
-              <span className="text-[11px] text-slate-400">Inclui múltiplos de desdobramento</span>
-            </div>
-
-            {/* Quadras */}
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                <span>Quadras (4 acertos)</span>
-                <CheckCircle2 size={16} className="text-emerald-500" />
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">
-                  {totalQuadras}
-                </div>
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
-                  R$ {(premios.quadra || 0).toLocaleString('pt-BR')} cada
-                </span>
-              </div>
-              <span className="text-[11px] text-slate-400">Inclui múltiplos de desdobramento</span>
-            </div>
-          </>
+          </form>
         )}
       </div>
-
-      {/* Lista de Jogos Conferidos com Destaque Visual */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-xs border border-slate-200/80 dark:border-slate-800">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100">
-              Desempenho dos Jogos ({jogosConferidos.length})
-            </h3>
-            <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full text-slate-600 dark:text-slate-400 font-medium">
-              Conferência ao vivo
-            </span>
-          </div>
-          <span className="text-xs text-slate-400">Acertos destacados em verde</span>
-        </div>
-
-        <div className="space-y-3">
-          {jogosConferidos.map((j, idx) => {
-            const ehPremiado = j.premiacaoCalculada.valorTotal > 0;
-            return (
-              <div
-                key={j.jogoId}
-                className={`p-3.5 sm:p-4 rounded-xl border transition-all ${
-                  ehPremiado
-                    ? 'border-emerald-500/60 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs'
-                    : 'border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-800/30'
-                }`}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200">
-                      Jogo #{idx + 1}
-                    </span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
-                      ({j.dezenas.length} dezenas jogadas)
-                    </span>
-                    {ehPremiado && (
-                      <span className="text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950">
-                        Premiado!
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="text-xs font-semibold">
-                      Acertos:{' '}
-                      <strong className={j.totalAcertos >= 4 ? 'text-emerald-600 font-black text-sm' : 'text-slate-600 dark:text-slate-400'}>
-                        {j.totalAcertos}
-                      </strong>
-                      {ehPremiado && (
-                        <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-bold">
-                          (+ R$ {j.premiacaoCalculada.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})
-                        </span>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSelectedTicket({
-                          open: true,
-                          imageUrl: j.foto_url,
-                          gameIndex: idx + 1,
-                          dezenas: j.dezenas,
-                          codigo: jogos[idx]?.codigo_bilhete,
-                        })
-                      }
-                      className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 flex items-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-lg transition hover:shadow-xs"
-                    >
-                      <Receipt size={13} />
-                      <span>Ver Bilhete</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Bolinhas das Dezenas com destaque nas acertadas */}
-                <div className="flex flex-wrap gap-1.5">
-                  {j.dezenas.map((num) => {
-                    const acertou = j.acertos.includes(num);
-                    return (
-                      <span
-                        key={num}
-                        className={`w-8 h-8 rounded-full text-xs font-bold flex items-center justify-center transition-all ${
-                          acertou
-                            ? 'bg-emerald-600 text-white ring-2 ring-emerald-400 scale-105 shadow-xs font-black'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                        }`}
-                      >
-                        {num < 10 ? `0${num}` : num}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Tabela de Repasse Financeiro por Cotista */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xs border border-slate-200/80 dark:border-slate-800 overflow-hidden">
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Coins size={18} className="text-amber-500" />
-              <span>Tabela de Repasse Financeiro por Cotista</span>
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Rateio rigorosamente restrito aos cotistas com status "Pago" ({totalCotasPagas} cotas pagas).
+      <ResultadoView bolao={bolao} jogos={jogos} />
+      {bolao.resultado && (
+        <div className="card">
+          <h3 className="font-bold">Rateio das cotas pagas</h3>
+          <p className="text-sm mb-3">
+            Centavos restantes são distribuídos pelas maiores frações; empate
+            pelo identificador do participante.
+          </p>
+          {calcularRateio(participantes, total).map((p) => (
+            <p key={p.id} className="flex justify-between gap-3 py-2 border-b">
+              {p.nome}
+              <strong>{currency(p.valorAReceber)}</strong>
             </p>
-          </div>
-
-          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-            Total a Repassar: R$ {totalPremioBolao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-          </span>
+          ))}
         </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-100 dark:border-slate-800">
-              <tr>
-                <th className="py-3 px-4">Participante</th>
-                <th className="py-3 px-3 text-center">Cotas Pagas</th>
-                <th className="py-3 px-3 text-right">Participação</th>
-                <th className="py-3 px-4 text-right">Valor a Receber</th>
-                <th className="py-3 px-4 text-center">Notificar WhatsApp</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-              {rateio.map((p) => {
-                const isPago = p.status_pagamento === 'Pago';
-                return (
-                  <tr
-                    key={p.id}
-                    className={`hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition ${
-                      !isPago ? 'opacity-50 bg-slate-50/40 dark:bg-slate-900/40' : ''
-                    }`}
-                  >
-                    <td className="py-3.5 px-4 font-semibold text-slate-900 dark:text-slate-100">
-                      <div className="flex items-center gap-2">
-                        <span>{p.nome}</span>
-                        {!isPago && (
-                          <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950 px-2 py-0.5 rounded-full font-bold">
-                            Pendente
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[11px] text-slate-400 font-normal font-mono">{p.telefone}</div>
-                    </td>
-                    <td className="py-3.5 px-3 text-center font-bold text-slate-900 dark:text-slate-100">
-                      {isPago ? p.qtd_cotas : 0}
-                    </td>
-                    <td className="py-3.5 px-3 text-right font-mono text-slate-500 dark:text-slate-400">
-                      {isPago ? `${p.porcentagem.toFixed(1)}%` : '0.0%'}
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-extrabold text-emerald-700 dark:text-emerald-400 text-sm font-mono tabular-nums">
-                      R$ {p.valorAReceber.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="py-3.5 px-4 text-center">
-                      <button
-                        type="button"
-                        onClick={() => enviarWhatsAppCotista(p)}
-                        disabled={!isPago || p.valorAReceber === 0}
-                        aria-label={`Enviar mensagem WhatsApp para ${p.nome}`}
-                        className="p-2 rounded-xl text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 disabled:opacity-30 disabled:cursor-not-allowed transition inline-flex items-center justify-center"
-                        title={isPago && p.valorAReceber > 0 ? 'Enviar WhatsApp com valor do prêmio' : 'Sem premiação'}
-                      >
-                        <Smartphone size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Modal de Comprovante Oficial */}
-      <TicketViewerModal
-        isOpen={selectedTicket.open}
-        onClose={() => setSelectedTicket({ ...selectedTicket, open: false })}
-        imageUrl={selectedTicket.imageUrl}
-        gameIndex={selectedTicket.gameIndex}
-        dezenas={selectedTicket.dezenas}
-        codigoBilhete={selectedTicket.codigo}
-      />
+      )}
     </div>
   );
-};
+}

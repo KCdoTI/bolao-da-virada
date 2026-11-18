@@ -1,3 +1,5 @@
+import { getModalidadeInfo } from '../constants/lotteryCatalog';
+import { validarDezenas } from './validation';
 export interface ExtractedGameCandidate {
   rawLine: string;
   dezenas: number[];
@@ -76,107 +78,34 @@ export function parseCaixaTicketText(
 ): ExtractedGameCandidate[] {
   if (!ocrText) return [];
 
-  const upperAll = ocrText.toUpperCase();
-  let maxNumber = 60;
-  let minDezenas = 6;
-  let maxDezenas = 15;
-
-  const mod = (modalidadePreferida || '').toLowerCase();
-  const isLoto = mod.includes('lotofácil') || mod.includes('lotofacil') || upperAll.includes('LOTOFACIL') || upperAll.includes('LOTOFÁCIL');
-  const isQuina = mod.includes('quina') || upperAll.includes('QUINA');
-  const isDupla = mod.includes('dupla') || upperAll.includes('DUPLA SENA');
-
-  if (isLoto) {
-    maxNumber = 25;
-    minDezenas = 15;
-    maxDezenas = 20;
-  } else if (isQuina) {
-    maxNumber = 80;
-    minDezenas = 5;
-    maxDezenas = 15;
-  } else if (isDupla) {
-    maxNumber = 50;
-    minDezenas = 6;
-    maxDezenas = 15;
-  }
-
-  const lines = ocrText.split('\n');
+  const upper = ocrText.toUpperCase();
+  const inferred = /LOTOF[ÁA]CIL/.test(upper) ? 'Lotofácil' : /QUINA/.test(upper) ? 'Quina' : /DUPLA/.test(upper) ? 'Dupla Sena' : 'Mega-Sena';
+  const modalidade = modalidadePreferida || inferred;
+  const info = getModalidadeInfo(modalidade);
   const candidates: ExtractedGameCandidate[] = [];
-
-  const blacklist = [
-    'CONCURSO', 'VALOR', 'DATA', 'HORA', 'LOTERIAS', 'CAIXA',
-    'TERMINAL', 'LOCAL', 'AGENCIA', 'PRODUTO', 'SEGURANCA', 'SERIE',
-    'APURACAO', 'AUTENTICACAO', 'CONTROLE', 'BARRAS', 'FEDERAL',
-    'ECONOMICA', 'LOTERICA', 'BILHETE'
-  ];
-
-  for (const rawLine of lines) {
-    const trimmed = rawLine.trim();
-    if (!trimmed || trimmed.length < 8) continue;
-
-    const upper = trimmed.toUpperCase();
-    if (blacklist.some((term) => upper.includes(term))) {
-      continue;
-    }
-
-    // Remove prefixos de bilhete como "JOGO 01:", "JOGO 1", "A - ", etc.
-    const semPrefixo = upper
-      .replace(/^JOGO\s*\d+\s*[:\-]?\s*/i, '')
-      .replace(/^[A-Z]\s*[-:]\s*/i, '');
-
-    // Normaliza potenciais confusões do OCR em fontes pontilhadas térmicas
-    const normalized = semPrefixo
-      .replace(/[Oo]/g, '0')
-      .replace(/[Il|]/g, '1')
-      .replace(/[Ss]/g, '5')
-      .replace(/[Bb]/g, '8')
-      .replace(/[,;.\-_/:]/g, ' ');
-
-    const matches = normalized.match(/\b\d{1,2}\b/g);
-
-    if (matches) {
-      const numbers = matches
-        .map((n) => parseInt(n, 10))
-        .filter((n) => n >= 1 && n <= maxNumber);
-
-      const uniqueSorted = Array.from(new Set(numbers)).sort((a, b) => a - b);
-
-      if (uniqueSorted.length >= minDezenas && uniqueSorted.length <= maxDezenas) {
-        candidates.push({
-          rawLine: trimmed,
-          dezenas: uniqueSorted,
-          confianca: uniqueSorted.length === minDezenas ? 'alta' : 'media',
-          descricao: `Sequência de ${uniqueSorted.length} dezenas detectada (${isLoto ? 'Lotofácil' : isQuina ? 'Quina' : isDupla ? 'Dupla Sena' : 'Mega-Sena'})`,
-        });
-      }
-    }
+  let pending: number[] = [];
+  let raw: string[] = [];
+  const flush = () => {
+    try {
+      validarDezenas(pending, modalidade);
+      candidates.push({ rawLine: raw.join('\n'), dezenas: [...pending].sort((a,b)=>a-b), confianca: raw.length === 1 ? 'alta' : 'media', descricao: `Possível jogo de ${modalidade}: confira no original.` });
+    } catch { /* Ambiguous or incomplete blocks are deliberately not guessed. */ }
+    pending=[];raw=[];
+  };
+  for (const line of ocrText.split(/\r?\n/)) {
+    const trimmed=line.trim().toUpperCase();
+    if (!trimmed || /CONCURSO|VALOR|DATA|HORA|CAIXA|LOTER|TERMINAL|LOCAL|AGENCIA|SEGURAN|SERIE|APURAC|AUTENTIC|CONTROLE|BARRAS|FEDERAL|ECONOM|BILHETE|R\$|\d[/:.]\d/.test(trimmed)) { flush(); continue; }
+    const prefix=/^(?:JOGO\s*\d+\s*[:\-]?|[A-Z]\s*[-:])\s*/;
+    if(prefix.test(trimmed))flush();
+    const numbers=trimmed.replace(prefix,'').replace(/[O]/g,'0').replace(/[I|]/g,'1');
+    if(!numbers)continue;
+    if(!/^(?:\d{1,2})(?:[\s,;\-]+\d{1,2})*$/.test(numbers)){flush();continue;}
+    const values=numbers.split(/[\s,;\-]+/).map(Number);
+    if(values.some(n=>n<1||n>info.universoNumeros)){flush();continue;}
+    if(values.length>=info.minimoDezenas){flush();pending=values;raw=[line];flush();}
+    else { pending.push(...values);raw.push(line); }
   }
-
-  // Se nenhuma linha isolada continha o bloco completo (comum na Lotofácil com múltiplas linhas)
-  if (candidates.length === 0) {
-    const cleanAll = upperAll
-      .replace(/[Oo]/g, '0')
-      .replace(/[Il|]/g, '1')
-      .replace(/[,;.\-_/:]/g, ' ');
-
-    const allMatches = cleanAll.match(/\b\d{1,2}\b/g);
-    if (allMatches) {
-      const allNumbers = allMatches
-        .map((n) => parseInt(n, 10))
-        .filter((n) => n >= 1 && n <= maxNumber);
-      const unique = Array.from(new Set(allNumbers)).sort((a, b) => a - b);
-
-      if (unique.length >= minDezenas) {
-        const slice = unique.slice(0, Math.min(maxDezenas, unique.length));
-        candidates.push({
-          rawLine: 'Dezenas consolidadas do bilhete',
-          dezenas: slice,
-          confianca: 'media',
-          descricao: `Extração consolidada (${slice.length} dezenas)`,
-        });
-      }
-    }
-  }
+  flush();
 
   return candidates;
 }
