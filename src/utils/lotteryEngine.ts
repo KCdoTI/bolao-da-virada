@@ -1,5 +1,5 @@
-import { Jogo, Participante, PremiacaoFaixas, JogoConferido, RateioCotista, DetalheFaixaPremiacao } from '../types';
-import { validarDezenas } from './validation';
+import { Jogo, Participante, PremiacaoFaixas, JogoConferido, RateioCotista, DetalheFaixaPremiacao } from '../types/index.js';
+import { validarDezenas } from './validation.js';
 
 /**
  * Análise Combinatória C(n, k) = n! / (k! * (n - k)!)

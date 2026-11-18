@@ -1,7 +1,7 @@
 import type { Plugin } from "vite";
 import express from "express";
-import handler from "../api/bolao";
-import receiptHandler from "../api/comprovante";
+import handler from "../api/bolao.js";
+import receiptHandler from "../api/comprovante.js";
 export function poolApi(): Plugin {
   return {
     name: "pool-api",

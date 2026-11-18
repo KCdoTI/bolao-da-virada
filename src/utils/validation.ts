@@ -1,7 +1,7 @@
 import {
   getModalidadeInfo,
   CATALOGO_MODALIDADES,
-} from "../constants/lotteryCatalog";
+} from "../constants/lotteryCatalog.js";
 
 export function validarDezenas(
   dezenas: unknown,

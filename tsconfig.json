@@ -4,7 +4,6 @@
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
     "module": "ESNext",
-    "types": ["vite/client"],
     "lib": [
       "ES2022",
       "DOM",
@@ -14,15 +13,14 @@
     "moduleResolution": "bundler",
     "isolatedModules": true,
     "moduleDetection": "force",
+    "noUncheckedSideEffectImports": false,
     "allowJs": true,
     "jsx": "react-jsx",
     "paths": {
       "@/*": [
         "./*"
       ]
-    },
-    "allowImportingTsExtensions": true,
-    "noEmit": true
+    }
   },
   "exclude": ["dist"]
 }

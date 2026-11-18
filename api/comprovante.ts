@@ -1,5 +1,5 @@
-import { getStore } from "../server/store";
-import { hashToken, HttpError } from "../server/poolService";
+import { getStore } from "../server/store.js";
+import { hashToken, HttpError } from "../server/poolService.js";
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   try {

@@ -1,7 +1,7 @@
-import type { PremiacaoFaixas, ResultadoConcurso } from "../src/types";
-import { getModalidadeInfo } from "../src/constants/lotteryCatalog";
-import { validarDezenas } from "../src/utils/validation";
-import { HttpError } from "./poolService";
+import type { PremiacaoFaixas, ResultadoConcurso } from "../src/types/index.js";
+import { getModalidadeInfo } from "../src/constants/lotteryCatalog.js";
+import { validarDezenas } from "../src/utils/validation.js";
+import { HttpError } from "./poolService.js";
 
 export const prizeKeys: Record<string, (keyof PremiacaoFaixas)[]> = {
   "Mega-Sena": ["sena", "quina", "quadra"],

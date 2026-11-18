@@ -1,13 +1,13 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
-import type { PoolStore, StoredPool } from "./store";
-import type { PoolState } from "../src/types";
+import type { PoolStore, StoredPool } from "./store.js";
+import type { PoolState } from "../src/types/index.js";
 import {
   CATALOGO_MODALIDADES,
   getModalidadeInfo,
-} from "../src/constants/lotteryCatalog";
-import { validarDezenas } from "../src/utils/validation";
-import { conferirJogo, calcularRateio } from "../src/utils/lotteryEngine";
+} from "../src/constants/lotteryCatalog.js";
+import { validarDezenas } from "../src/utils/validation.js";
+import { conferirJogo, calcularRateio } from "../src/utils/lotteryEngine.js";
 
 const text = z.string().max(200);
 const date = z.string().datetime({ offset: true });

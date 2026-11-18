@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import type { PoolState } from "../src/types";
+import type { PoolState } from "../src/types/index.js";
 
 export interface StoredPool {
   id: string;

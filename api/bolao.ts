@@ -1,11 +1,11 @@
-import { getStore } from "../server/store";
+import { getStore } from "../server/store.js";
 import {
   createPool,
   readPool,
   updatePool,
   HttpError,
-} from "../server/poolService";
-import { fetchOfficialDraw } from "../server/caixa";
+} from "../server/poolService.js";
+import { fetchOfficialDraw } from "../server/caixa.js";
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
