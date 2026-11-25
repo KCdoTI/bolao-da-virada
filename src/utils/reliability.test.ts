@@ -4,14 +4,21 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sqliteStore } from "../../server/store.js";
-import { createPool, readPool, updatePool } from "../../server/poolService.js";
+import {
+  createPool,
+  executeParticipantAction,
+  managePoolEvents,
+  readPool,
+  updatePool,
+} from "../../server/poolService.js";
 import { fetchOfficialDraw, parseOfficialDraw } from "../../server/caixa.js";
 import {
   clearLotteryInfoCache,
   fetchLotteryLiveInfo,
   parseCaixaPortalSummary,
 } from "../../server/lotteryInfo.js";
-import { conferirJogo, calcularRateio } from "./lotteryEngine";
+import { conferirJogo, calcularRateio, calcularRateioUnificado } from "./lotteryEngine.js";
+import { gerarPayloadPixEstatico, gerarQrCodePixSvg } from "./pix.js";
 import { parseCaixaTicketText } from "./lotteryOcrParser";
 import { calculateSha256, generateCanonicalManifest } from "./transparency";
 import type { PoolState, Participante } from "../types";
@@ -87,8 +94,10 @@ test("persistência após reabrir banco, autorização, privacidade, conflito e 
   await assert.rejects(updatePool(db, secret, payload, 1), /Outra sessão/);
   db.close?.();
   db = await sqliteStore(join(dir, "data.sqlite"));
-  const publicData = await readPool(db, created.bolao.hash_slug);
-  assert.equal(publicData.jogos.length, 1);
+  const publicData: any = await readPool(db, created.bolao.hash_slug);
+  // Jogos ficam ocultos no acesso não pago, mas a contagem agregada aparece no resumo
+  assert.equal(publicData.jogos.length, 0);
+  assert.equal(publicData.resumo.jogos, 1);
   assert.equal(publicData.participantes.length, 0);
   assert.equal(publicData.bolao.chave_pix_organizador, "");
   assert.ok(!JSON.stringify(publicData).includes(secret));
@@ -101,6 +110,7 @@ test("persistência após reabrir banco, autorização, privacidade, conflito e 
   );
   assert.equal(personal.participantes.length, 1);
   assert.equal(personal.participantes[0].id, "a");
+  assert.equal(personal.jogos.length, 1);
   await assert.rejects(
     readPool(db, created.bolao.hash_slug, undefined, "wrong"),
     /não encontrado/,
@@ -168,7 +178,18 @@ test("persistência após reabrir banco, autorização, privacidade, conflito e 
   const rotated = await updatePool(db, secret, settled, 4, "revogar_link");
   await assert.rejects(readPool(db, created.bolao.hash_slug), /não encontrado/);
   assert.equal(
-    (await readPool(db, rotated.bolao.hash_slug)).bolao.resultado?.origem,
+    (await readPool(db, rotated.bolao.hash_slug)).bolao.resultado,
+    undefined,
+  );
+  assert.equal(
+    (
+      await readPool(
+        db,
+        rotated.bolao.hash_slug,
+        undefined,
+        updated.participantes[0].token_acesso,
+      )
+    ).bolao.resultado?.origem,
     "manual",
   );
 });
@@ -454,4 +475,166 @@ test("Lote A: portal da Caixa gera opções de concursos futuros, Virada e fallb
   assert.equal(calls, 2);
   assert.equal(fallbackInfo.fonteTipo, "contingencia_espelho");
   assert.equal(fallbackInfo.proximoConcurso.numero, 6591);
+});
+
+test("Lote B: etapas do link (aceite -> PIX QR -> já paguei -> transparência pós-confirmação), palpites, troco igualitário e fila n8n", async () => {
+  // 1. Testa geração BR Code PIX + QR SVG local
+  const brCode = gerarPayloadPixEstatico({
+    chavePix: "(11) 98888-7777",
+    tipoChave: "telefone",
+    nomeRecebedor: "Kelvin Castro",
+    cidadeRecebedor: "Sao Paulo",
+    valor: 24.0,
+    txid: "BOLAO3091",
+  });
+  assert.ok(brCode.startsWith("00020126"));
+  assert.ok(brCode.includes("br.gov.bcb.pix"));
+  assert.ok(brCode.includes("+5511988887777"));
+  assert.ok(brCode.includes("540524.00"));
+  assert.match(brCode, /6304[0-9A-F]{4}$/);
+  const svg = await gerarQrCodePixSvg(brCode);
+  assert.ok(svg.includes("<svg"));
+
+  // 2. Testa divisão igualitária do troco vs proporcional das cotas
+  const rateioMisto = calcularRateioUnificado(
+    [
+      { id: "p1", bolao_id: "b", nome: "Ana", telefone: "", qtd_cotas: 3, status_pagamento: "Pago" },
+      { id: "p2", bolao_id: "b", nome: "Bruno", telefone: "", qtd_cotas: 1, status_pagamento: "Pago" },
+      { id: "p3", bolao_id: "b", nome: "Caio", telefone: "", qtd_cotas: 2, status_pagamento: "Pendente" },
+    ],
+    100, // R$ 100 dos jogos normais -> Ana 75, Bruno 25
+    50,  // R$ 50 dos jogos de troco -> Ana 25, Bruno 25 (igualitário!)
+  );
+  assert.equal(rateioMisto.find((r) => r.id === "p1")?.valorCotas, 75);
+  assert.equal(rateioMisto.find((r) => r.id === "p1")?.valorTroco, 25);
+  assert.equal(rateioMisto.find((r) => r.id === "p1")?.valorAReceber, 100);
+  assert.equal(rateioMisto.find((r) => r.id === "p2")?.valorCotas, 25);
+  assert.equal(rateioMisto.find((r) => r.id === "p2")?.valorTroco, 25);
+  assert.equal(rateioMisto.find((r) => r.id === "p2")?.valorAReceber, 50);
+  assert.equal(rateioMisto.find((r) => r.id === "p3")?.valorAReceber, 0);
+
+  // 3. Fluxo completo no banco: inscrição -> aceite -> já paguei -> palpite -> bloqueio de jogos -> confirmação -> liberação + n8n ack
+  const db = await sqliteStore(":memory:");
+  try {
+    const created = await createPool(db, state());
+    const withGame = await updatePool(
+      db,
+      created.adminToken,
+      {
+        ...created,
+        participantes: [
+          {
+            id: "convidado-1",
+            bolao_id: created.bolao.id,
+            nome: "Mariana",
+            telefone: "11977776666",
+            qtd_cotas: 2,
+            status_pagamento: "Pendente",
+          },
+        ],
+        jogos: [
+          {
+            id: "j-normal",
+            bolao_id: created.bolao.id,
+            dezenas: [1, 2, 3, 4, 5, 6],
+            criado_em: new Date().toISOString(),
+            tipo_jogo: "normal",
+          },
+          {
+            id: "j-troco",
+            bolao_id: created.bolao.id,
+            dezenas: [7, 8, 9, 10, 11, 12],
+            criado_em: new Date().toISOString(),
+            tipo_jogo: "troco",
+          },
+        ],
+      },
+      1,
+    );
+
+    const tokenMariana = withGame.participantes[0].token_acesso!;
+
+    // Antes do aceite: chave PIX oculta e jogos ocultos
+    const step1: any = await readPool(
+      db,
+      created.bolao.hash_slug,
+      undefined,
+      tokenMariana,
+    );
+    assert.equal(step1.bolao.chave_pix_organizador, "");
+    assert.equal(step1.jogos.length, 0);
+    assert.equal(step1.transparenciaLiberada, false);
+
+    // Aceita regras -> libera PIX, mas jogos continuam bloqueados até confirmação de pagamento!
+    const step2: any = await executeParticipantAction(db, {
+      slug: created.bolao.hash_slug,
+      personalToken: tokenMariana,
+      action: "aceitar_regras",
+    });
+    assert.equal(step2.bolao.chave_pix_organizador, "privado");
+    assert.equal(step2.jogos.length, 0);
+    assert.equal(step2.transparenciaLiberada, false);
+
+    // Informa pagamento PIX e envia palpite
+    const afterPaidNotice: any = await executeParticipantAction(db, {
+      slug: created.bolao.hash_slug,
+      personalToken: tokenMariana,
+      action: "informar_pagamento",
+    });
+    assert.ok(afterPaidNotice.participantes[0].avisou_pagamento_em);
+
+    const afterPalpite: any = await executeParticipantAction(db, {
+      slug: created.bolao.hash_slug,
+      personalToken: tokenMariana,
+      action: "enviar_palpite",
+      payload: { dezenas: [5, 10, 20, 30, 40, 50] },
+    });
+    assert.equal(afterPalpite.palpites.length, 1);
+
+    // n8n consulta fila de eventos não lidos
+    const feed1 = await managePoolEvents(db, created.adminToken, {
+      onlyUnacked: true,
+    });
+    assert.equal(feed1.eventos.length, 3); // regras_aceitas, pagamento_informado, novo_palpite
+    assert.equal(feed1.resumo.aguardando_confirmacao_pix, 1);
+
+    // n8n confirma leitura até o último seq -> fila não lida zera
+    const feedAck = await managePoolEvents(db, created.adminToken, {
+      ackUpTo: feed1.resumo.ultimo_seq,
+      onlyUnacked: true,
+    });
+    assert.equal(feedAck.eventos.length, 0);
+
+    // Organizador recarrega estado atualizado e confirma o pagamento de Mariana
+    const adminCurrent: any = await readPool(db, "", created.adminToken);
+    await updatePool(
+      db,
+      created.adminToken,
+      {
+        bolao: adminCurrent.bolao,
+        jogos: adminCurrent.jogos,
+        participantes: adminCurrent.participantes.map((p: any) => ({
+          ...p,
+          status_pagamento: "Pago",
+        })),
+      },
+      adminCurrent.revision,
+    );
+
+    // Etapa 3: agora Mariana vê os jogos normais e os jogos de troco!
+    const step3: any = await readPool(
+      db,
+      created.bolao.hash_slug,
+      undefined,
+      tokenMariana,
+    );
+    assert.equal(step3.transparenciaLiberada, true);
+    assert.equal(step3.jogos.length, 2);
+    assert.equal(
+      step3.jogos.filter((j: any) => j.tipo_jogo === "troco").length,
+      1,
+    );
+  } finally {
+    db.close?.();
+  }
 });

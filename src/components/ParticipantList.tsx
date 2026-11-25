@@ -163,6 +163,16 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
                           Organizador
                         </span>
                       )}
+                      {participante.aceite_em && (
+                        <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Aceitou regras
+                        </span>
+                      )}
+                      {!isPago && participante.avisou_pagamento_em && (
+                        <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-900 border border-blue-300 animate-pulse">
+                          💰 Informou PIX!
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 font-mono">
                       <Phone size={11} className="text-slate-400 shrink-0" />

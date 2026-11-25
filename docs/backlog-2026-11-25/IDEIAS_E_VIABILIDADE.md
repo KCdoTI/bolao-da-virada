@@ -97,8 +97,15 @@ Fluxo proposto (no **link pessoal** `#cota-...`, pois aceite precisa de identida
    - ✅ **Câmera + compressão + rotação no OCR:** botões separados *"Tirar foto com a câmera"* e *"Escolher da galeria"*, compressão automática no aparelho de fotos até 15 MB para JPEG leve (< 1,8 MB) e botão *"Girar 90°"*.
    - ✅ **Planejador em tempo real + carteira mista:** puxa automaticamente participantes, cotas pagas, cotas totais e jogos já lançados, permitindo combinar múltiplas faixas de dezenas na mesma simulação.
    - ✅ **Concursos e datas ao vivo da Caixa (`/api/loteria`):** seleção de concurso por lista oficial/prevista (sem digitar no escuro), preenchimento automático da data prevista do sorteio visível para todos e alerta de concurso vencido com opção de migração auditada (`adiar_concurso`).
-2. **Lote B — Próximo lote (P2):** aceite → QR PIX → “já paguei” → transparência liberada após pagamento confirmado · palpites · troco fase 1 (divisão igualitária) · eventos pull para o n8n no Raspberry.
-3. **Lote C (P3):** contatos/vCard · troco em outra modalidade · auto-inscrição pelo link público.
+2. **Lote B — Entregue em 25/11/2026 (P2):**
+   - ✅ **Link em 3 etapas (`PublicTransparencyView` + `/api/participante`):**
+     1. *Ver e aceitar regras* (ou inscrição direta pelo link público com aceite);
+     2. *Pagamento PIX com QR Code oficial* (BR Code EMV estático + CRC16 gerado localmente, valor exato calculado) + botão *"Já fiz o PIX — Avisar organizador"*;
+     3. *Transparência completa bloqueada no servidor até confirmação do pagamento* (`status_pagamento === 'Pago'`), liberando jogos, hashes SHA-256, apuração e rateio individual somente após confirmação do organizador.
+   - ✅ **Palpites dos participantes:** envio de até 3 palpites validados por participante, ranking das dezenas mais votadas pela turma e botão de 1 clique no painel do organizador para transformar palpites em jogos.
+   - ✅ **Jogos de Troco (Fase 1):** marcação de apostas como `tipo_jogo: 'troco'` (sem cotas), seção dedicada na transparência e `calcularRateioUnificado` dividindo o prêmio do troco **igualmente por pessoa paga** em centavos inteiros (`BigInt`).
+   - ✅ **Avisos para o n8n no Raspberry (`/api/eventos` + `AvisosN8nModal`):** fila persistente de eventos (`nova_inscricao`, `regras_aceitas`, `pagamento_informado`, `novo_palpite`, `resultado_publicado`) com mensagens de WhatsApp pré-formatadas, endpoint pull autenticado com confirmação (`ackUpTo`) e JSON de workflow n8n pronto para colar no Raspberry Pi.
+3. **Lote C (P3 — futuro):** contatos/vCard · troco em outra modalidade.
 
 ## Decisões confirmadas (Kelvin — 25/11/2026)
 - **Transparência completa no link pessoal:** libera **só depois que o organizador confirmar o pagamento** (`status_pagamento === 'Pago'`).

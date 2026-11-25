@@ -194,6 +194,67 @@ export function calcularRateio(
       porcentagem,
       valorAReceber,
       valorPorCota,
+      valorCotas: valorAReceber,
+      valorTroco: 0,
+    };
+  });
+}
+
+/**
+ * Rateio unificado:
+ * - Jogos principais (normais): divididos proporcionalmente às cotas pagas;
+ * - Jogos de Troco: divididos IGUALMENTE por pessoa paga (1 parte igual para cada participante confirmado),
+ *   ambos calculados em centavos inteiros (BigInt) com fechamento exato.
+ */
+export function calcularRateioUnificado(
+  participantes: Participante[],
+  valorPremioJogosNormais: number,
+  valorPremioJogosTroco: number = 0,
+): RateioCotista[] {
+  const baseProporcional = calcularRateio(participantes, valorPremioJogosNormais);
+  if (
+    !Number.isFinite(valorPremioJogosTroco) ||
+    valorPremioJogosTroco < 0 ||
+    !Number.isSafeInteger(Math.round(valorPremioJogosTroco * 100))
+  ) {
+    throw new Error('Total de prêmio do troco inválido.');
+  }
+
+  const cotistasPagos = participantes.filter((p) => p.status_pagamento === 'Pago');
+  const qtdPessoasPagas = cotistasPagos.length;
+  const centavosTroco = BigInt(Math.round(valorPremioJogosTroco * 100));
+
+  if (qtdPessoasPagas === 0 || centavosTroco === 0n) {
+    return baseProporcional.map((r) => ({
+      ...r,
+      valorCotas: r.valorAReceber,
+      valorTroco: 0,
+    }));
+  }
+
+  const cotaIgual = centavosTroco / BigInt(qtdPessoasPagas);
+  const restoPessoas = Number(centavosTroco % BigInt(qtdPessoasPagas));
+  const ordenadosPorId = [...cotistasPagos].sort((a, b) => a.id.localeCompare(b.id, 'en'));
+  const bonusIds = new Set(ordenadosPorId.slice(0, restoPessoas).map((p) => p.id));
+
+  return baseProporcional.map((r) => {
+    if (r.status_pagamento !== 'Pago') {
+      return {
+        ...r,
+        valorCotas: 0,
+        valorTroco: 0,
+        valorAReceber: 0,
+      };
+    }
+    const meuTrocoCentavos = cotaIgual + (bonusIds.has(r.id) ? 1n : 0n);
+    const minhasCotasCentavos = BigInt(Math.round(r.valorAReceber * 100));
+    const valorCotas = Number(minhasCotasCentavos) / 100;
+    const valorTroco = Number(meuTrocoCentavos) / 100;
+    return {
+      ...r,
+      valorCotas,
+      valorTroco,
+      valorAReceber: Number(minhasCotasCentavos + meuTrocoCentavos) / 100,
     };
   });
 }

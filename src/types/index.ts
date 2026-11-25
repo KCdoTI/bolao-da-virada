@@ -35,6 +35,7 @@ export interface Bolao {
   data_sorteio?: string;
   resultado?: ResultadoConcurso;
   fechado_em?: string;
+  permitir_inscricao_publica?: boolean;
 }
 
 export interface Participante {
@@ -48,6 +49,9 @@ export interface Participante {
   token_acesso?: string;
   pago_em?: string;
   is_organizador?: boolean;
+  aceite_em?: string;
+  regras_aceitas_hash?: string;
+  avisou_pagamento_em?: string;
 }
 
 export interface OpcaoConcursoCaixa {
@@ -99,20 +103,50 @@ export interface ResultadoConcurso {
   sorteios: { dezenas: number[]; premiacao: PremiacaoFaixas }[];
 }
 
+export interface PalpiteParticipante {
+  id: string;
+  participante_id: string;
+  participante_nome: string;
+  dezenas: number[];
+  criado_em: string;
+}
+
+export interface NotificacaoEvento {
+  seq: number;
+  tipo:
+    | 'nova_inscricao'
+    | 'regras_aceitas'
+    | 'pagamento_informado'
+    | 'novo_palpite'
+    | 'resultado_publicado';
+  criado_em: string;
+  titulo: string;
+  mensagem_whatsapp: string;
+  participante_id?: string;
+  participante_nome?: string;
+  lido?: boolean;
+}
+
 export interface PoolState {
   bolao: Bolao;
   participantes: Participante[];
   jogos: Jogo[];
+  palpites?: PalpiteParticipante[];
+  eventos?: NotificacaoEvento[];
 }
+
+export type TipoJogoBolao = 'normal' | 'troco';
 
 export interface Jogo {
   id: string;
   bolao_id: string;
-  dezenas: number[]; // De 6 a 15 números (1-60)
+  dezenas: number[];
   foto_url?: string;
   foto_sha256?: string;
   criado_em: string;
   codigo_bilhete?: string;
+  tipo_jogo?: TipoJogoBolao;
+  observacao?: string;
 }
 
 export interface DetalheFaixaPremiacao {
@@ -167,4 +201,6 @@ export interface RateioCotista extends Participante {
   porcentagem: number;
   valorAReceber: number;
   valorPorCota: number;
+  valorCotas?: number;
+  valorTroco?: number;
 }

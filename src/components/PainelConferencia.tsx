@@ -8,25 +8,33 @@ import type {
 } from "../types";
 import { getModalidadeInfo } from "../constants/lotteryCatalog";
 import { validarDezenas } from "../utils/validation";
-import { conferirJogo, calcularRateio } from "../utils/lotteryEngine";
+import {
+  conferirJogo,
+  calcularRateioUnificado,
+} from "../utils/lotteryEngine";
+
 export const currency = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 export function summarize(jogos: Jogo[], resultado?: ResultadoConcurso) {
   return resultado
     ? jogos.flatMap((j) =>
         resultado.sorteios.map((s, index) => ({
           ...conferirJogo(j, s.dezenas, s.premiacao, resultado.modalidade),
           sorteio: index + 1,
+          tipo_jogo: j.tipo_jogo || "normal",
         })),
       )
     : [];
 }
+
 export const keysByBase: Record<string, (keyof PremiacaoFaixas)[]> = {
   "Mega-Sena": ["sena", "quina", "quadra"],
   Quina: ["quina", "quadra", "terno", "duque"],
   Lotofácil: ["pontos15", "pontos14", "pontos13", "pontos12", "pontos11"],
   "Dupla Sena": ["sena", "quina", "quadra", "terno"],
 };
+
 export function ResultadoView({
   bolao,
   jogos,
@@ -42,7 +50,14 @@ export function ResultadoView({
       </p>
     );
   const rows = summarize(jogos, result);
-  const total = rows.reduce((s, j) => s + j.premiacaoCalculada.valorTotal, 0);
+  const totalNormais = rows
+    .filter((r) => r.tipo_jogo !== "troco")
+    .reduce((s, j) => s + j.premiacaoCalculada.valorTotal, 0);
+  const totalTroco = rows
+    .filter((r) => r.tipo_jogo === "troco")
+    .reduce((s, j) => s + j.premiacaoCalculada.valorTotal, 0);
+  const total = totalNormais + totalTroco;
+
   return (
     <section className="card space-y-4">
       <h2 className="text-xl font-bold">
@@ -70,9 +85,17 @@ export function ResultadoView({
           </p>
         </div>
       ))}
-      <p className="text-2xl font-bold text-emerald-700">
-        Total calculado: {currency(total)}
-      </p>
+      <div className="space-y-1">
+        <p className="text-2xl font-bold text-emerald-700">
+          Total calculado: {currency(total)}
+        </p>
+        {jogos.some((j) => j.tipo_jogo === "troco") && (
+          <p className="text-xs text-slate-600">
+            Jogos principais (rateio por cotas): <strong>{currency(totalNormais)}</strong> ·{" "}
+            Jogos de troco (divisão igualitária): <strong>{currency(totalTroco)}</strong>
+          </p>
+        )}
+      </div>
       <p className="text-sm">
         O cálculo considera as dezenas cadastradas. Confira o recibo original e
         as condições de resgate na Caixa.
@@ -98,6 +121,7 @@ export function ResultadoView({
           <thead>
             <tr>
               <th>Jogo</th>
+              <th>Categoria</th>
               <th>Sorteio</th>
               <th>Acertos</th>
               <th>Valor</th>
@@ -106,8 +130,9 @@ export function ResultadoView({
           <tbody>
             {rows.map((r, i) => (
               <tr key={i}>
-                <td>{jogos.findIndex((j) => j.id === r.jogoId) + 1}</td>
-                <td>{r.sorteio}</td>
+                <td>#{jogos.findIndex((j) => j.id === r.jogoId) + 1}</td>
+                <td>{r.tipo_jogo === "troco" ? "🪙 Troco" : "Principal"}</td>
+                <td>{r.sorteio}º</td>
                 <td>{r.totalAcertos}</td>
                 <td>{currency(r.premiacaoCalculada.valorTotal)}</td>
               </tr>
@@ -118,6 +143,7 @@ export function ResultadoView({
     </section>
   );
 }
+
 export function PainelConferencia({
   bolao,
   jogos,
@@ -143,12 +169,18 @@ export function PainelConferencia({
   const [date, setDate] = useState("");
   const [error, setError] = useState("");
   const [manual, setManual] = useState(false);
-  const total = summarize(jogos, bolao.resultado).reduce(
-    (s, j) => s + j.premiacaoCalculada.valorTotal,
-    0,
-  );
+
+  const rows = summarize(jogos, bolao.resultado);
+  const premioNormais = rows
+    .filter((r) => r.tipo_jogo !== "troco")
+    .reduce((s, j) => s + j.premiacaoCalculada.valorTotal, 0);
+  const premioTroco = rows
+    .filter((r) => r.tipo_jogo === "troco")
+    .reduce((s, j) => s + j.premiacaoCalculada.valorTotal, 0);
+
   const frozen =
     !!bolao.fechado_em || Date.now() >= Date.parse(bolao.data_limite);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -187,6 +219,14 @@ export function PainelConferencia({
       setError((e as Error).message);
     }
   }
+
+  const rateioUnificado = calcularRateioUnificado(
+    participantes,
+    premioNormais,
+    premioTroco,
+  );
+  const temTroco = jogos.some((j) => j.tipo_jogo === "troco");
+
   return (
     <div className="space-y-5">
       <div className="card space-y-3">
@@ -194,7 +234,8 @@ export function PainelConferencia({
           Conferência do concurso {bolao.concurso_numero}
         </h2>
         <p>
-          Os valores são salvos no bolão e compartilhados com os participantes.
+          Os valores são salvos no bolão e compartilhados com os participantes
+          com pagamento confirmado.
         </p>
         {!frozen && (
           <p className="text-amber-800">
@@ -285,19 +326,36 @@ export function PainelConferencia({
           </form>
         )}
       </div>
+
       <ResultadoView bolao={bolao} jogos={jogos} />
+
       {bolao.resultado && (
         <div className="card">
-          <h3 className="font-bold">Rateio das cotas pagas</h3>
+          <h3 className="font-bold">Rateio dos participantes pagos</h3>
           <p className="text-sm mb-3">
-            Centavos restantes são distribuídos pelas maiores frações; empate
-            pelo identificador do participante.
+            Jogos principais seguem a proporção de cotas; jogos de troco são
+            divididos em partes iguais entre todos os participantes confirmados.
           </p>
-          {calcularRateio(participantes, total).map((p) => (
-            <p key={p.id} className="flex justify-between gap-3 py-2 border-b">
-              {p.nome}
+          {rateioUnificado.map((p) => (
+            <div
+              key={p.id}
+              className="flex flex-wrap justify-between items-center gap-3 py-2.5 border-b"
+            >
+              <div>
+                <span className="font-medium">{p.nome}</span>
+                <span className="text-xs text-slate-500 block">
+                  {p.qtd_cotas} cota(s) · {p.status_pagamento}
+                  {temTroco && p.status_pagamento === "Pago" && (
+                    <>
+                      {" "}
+                      (Cotas: {currency(p.valorCotas || 0)} + Troco:{" "}
+                      {currency(p.valorTroco || 0)})
+                    </>
+                  )}
+                </span>
+              </div>
               <strong>{currency(p.valorAReceber)}</strong>
-            </p>
+            </div>
           ))}
         </div>
       )}

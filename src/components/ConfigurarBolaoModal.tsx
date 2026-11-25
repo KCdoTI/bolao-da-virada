@@ -356,14 +356,44 @@ export function ConfigurarBolaoModal({
             </label>
           </div>
 
-          <label>
-            Chave PIX do organizador (para os cotistas pagarem direto a você)
+          <div className="grid sm:grid-cols-3 gap-4">
+            <label className="sm:col-span-1">
+              Tipo da chave PIX
+              <select
+                value={draft.tipo_chave_pix || "aleatoria"}
+                onChange={(e) => change("tipo_chave_pix", e.target.value)}
+              >
+                <option value="cpf">CPF</option>
+                <option value="telefone">Celular / Telefone</option>
+                <option value="email">E-mail</option>
+                <option value="aleatoria">Chave Aleatória</option>
+                <option value="cnpj">CNPJ</option>
+              </select>
+            </label>
+            <label className="sm:col-span-2">
+              Chave PIX do organizador (gera o QR Code automático)
+              <input
+                maxLength={200}
+                value={draft.chave_pix_organizador}
+                onChange={(e) => change("chave_pix_organizador", e.target.value)}
+                placeholder="CPF, e-mail, celular ou chave aleatória"
+              />
+            </label>
+          </div>
+
+          <label className="flex items-center gap-2.5 text-xs cursor-pointer">
             <input
-              maxLength={200}
-              value={draft.chave_pix_organizador}
-              onChange={(e) => change("chave_pix_organizador", e.target.value)}
-              placeholder="CPF, e-mail, celular ou chave aleatória"
+              type="checkbox"
+              checked={draft.permitir_inscricao_publica ?? true}
+              onChange={(e) =>
+                change("permitir_inscricao_publica", e.target.checked)
+              }
+              className="w-4 h-4 shrink-0"
             />
+            <span>
+              Permitir que convidados entrem e aceitem as regras direto pelo Link
+              Público do grupo
+            </span>
           </label>
 
           {/* Participação do Organizador no Bolão */}

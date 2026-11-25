@@ -111,8 +111,10 @@ export function PrintReportModal({
           {jogos.map((j, i) => (
             <div className="py-3" key={j.id}>
               <p>
-                Jogo {i + 1}: {j.dezenas.join(" · ")}
+                Jogo {i + 1} {j.tipo_jogo === "troco" ? "(🪙 Troco — Divisão Igual)" : ""}:{" "}
+                {j.dezenas.join(" · ")}
               </p>
+              {j.observacao && <p className="text-xs italic">{j.observacao}</p>}
               <p>Código do recibo: {j.codigo_bilhete || "não informado"}</p>
               {j.foto_sha256 && (
                 <p className="text-xs break-all">

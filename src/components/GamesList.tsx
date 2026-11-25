@@ -1,12 +1,26 @@
-import React, { useState } from 'react';
-import { Ticket, PlusCircle, Receipt, Trash2, Search, Sparkles, Filter, X } from 'lucide-react';
-import { Jogo } from '../types';
+import React, { useMemo, useState } from 'react';
+import {
+  Ticket,
+  PlusCircle,
+  Receipt,
+  Trash2,
+  Search,
+  Sparkles,
+  X,
+  Coins,
+  Lightbulb,
+} from 'lucide-react';
+import { Jogo, PalpiteParticipante, TipoJogoBolao } from '../types';
 import { TicketViewerModal } from './TicketViewerModal';
+import { getModalidadeInfo } from '../constants/lotteryCatalog';
 
 interface GamesListProps {
   readOnly?: boolean;
   jogos: Jogo[];
-  onOpenNovoJogo: () => void;
+  palpites?: PalpiteParticipante[];
+  modalidade?: string;
+  onOpenNovoJogo: (tipo?: TipoJogoBolao) => void;
+  onUsarDezenasNoVolante?: (dezenas: number[], tipo?: TipoJogoBolao) => void;
   onRemoveJogo: (id: string) => void;
   onOpenAiConsultant?: () => void;
 }
@@ -14,7 +28,10 @@ interface GamesListProps {
 export const GamesList: React.FC<GamesListProps> = ({
   readOnly = false,
   jogos,
+  palpites = [],
+  modalidade = 'Mega-Sena',
   onOpenNovoJogo,
+  onUsarDezenasNoVolante,
   onRemoveJogo,
   onOpenAiConsultant,
 }) => {
@@ -31,28 +48,45 @@ export const GamesList: React.FC<GamesListProps> = ({
   });
 
   const [filtroDezena, setFiltroDezena] = useState<number | null>(null);
+  const info = getModalidadeInfo(modalidade);
 
-  // Filtra jogos pela dezena buscada
   const jogosFiltrados = filtroDezena
     ? jogos.filter((j) => j.dezenas.includes(filtroDezena))
     : jogos;
 
-  // Dezenas únicas jogadas no bolão
-  const todasDezenas = Array.from(new Set(jogos.flatMap((j) => j.dezenas))).sort((a, b) => a - b);
+  const todasDezenas = Array.from(new Set(jogos.flatMap((j) => j.dezenas))).sort(
+    (a, b) => a - b,
+  );
+
+  const qtdTroco = jogos.filter((j) => j.tipo_jogo === 'troco').length;
+  const qtdNormais = jogos.length - qtdTroco;
+
+  // Ranking das dezenas mais votadas nos palpites dos participantes
+  const topDezenasPalpites = useMemo(() => {
+    const freq = new Map<number, number>();
+    for (const p of palpites) {
+      for (const d of p.dezenas) {
+        freq.set(d, (freq.get(d) || 0) + 1);
+      }
+    }
+    return Array.from(freq.entries()).sort((a, b) =>
+      b[1] !== a[1] ? b[1] - a[1] : a[0] - b[0],
+    );
+  }, [palpites]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Header da Seção de Jogos */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <Ticket size={18} className="text-emerald-600 dark:text-emerald-400" />
             <h2 className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100">
-              Apostas Registradas na Lotérica ({jogos.length})
+              Apostas Registradas ({jogos.length})
             </h2>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {todasDezenas.length} dezenas distintas cobertas em {jogos.length} bilhetes
+          <p className="text-xs text-slate-500 mt-0.5">
+            {qtdNormais} principal(is) · {qtdTroco} de troco · {todasDezenas.length} dezenas distintas cobertas
           </p>
         </div>
 
@@ -60,26 +94,120 @@ export const GamesList: React.FC<GamesListProps> = ({
           {onOpenAiConsultant && (
             <button
               type="button"
-              disabled={readOnly} onClick={onOpenAiConsultant}
-              className="flex items-center gap-1.5 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-amber-300 border border-amber-500/30 text-xs font-semibold py-2 px-3.5 rounded-xl transition-all duration-150 active:scale-[0.98] shadow-xs"
+              disabled={readOnly}
+              onClick={onOpenAiConsultant}
+              className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/30 text-xs font-semibold py-2 px-3.5 rounded-xl transition-all active:scale-[0.98] shadow-xs cursor-pointer"
             >
               <Sparkles size={14} className="text-amber-400" />
-              <span>Gerar números & Gerador</span>
+              <span>Surpresinha rápida</span>
             </button>
           )}
 
           <button
             type="button"
-            disabled={readOnly} onClick={onOpenNovoJogo}
-            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold py-2 px-3.5 rounded-xl transition-all duration-150 active:scale-[0.98] shadow-xs"
+            disabled={readOnly}
+            onClick={() => onOpenNovoJogo('troco')}
+            className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold py-2 px-3.5 rounded-xl transition-all active:scale-[0.98] shadow-xs cursor-pointer"
+          >
+            <Coins size={15} />
+            <span>Novo Jogo de Troco</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={readOnly}
+            onClick={() => onOpenNovoJogo('normal')}
+            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold py-2 px-3.5 rounded-xl transition-all active:scale-[0.98] shadow-xs cursor-pointer"
           >
             <PlusCircle size={15} />
-            <span>Novo Jogo (Volante / OCR)</span>
+            <span>Novo Jogo Principal</span>
           </button>
         </div>
       </div>
 
-      {/* Barra de Filtro Rápido por Dezena (UX Interativa) */}
+      {/* Painel de Palpites dos Participantes */}
+      {palpites.length > 0 && (
+        <section className="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Lightbulb size={18} className="text-indigo-600" />
+              <h3 className="font-bold text-sm text-indigo-950">
+                Palpites enviados pelos participantes ({palpites.length})
+              </h3>
+            </div>
+            {!readOnly &&
+              onUsarDezenasNoVolante &&
+              topDezenasPalpites.length >= info.minimoDezenas && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const escolhidas = topDezenasPalpites
+                      .slice(0, info.minimoDezenas)
+                      .map(([num]) => num)
+                      .sort((a, b) => a - b);
+                    onUsarDezenasNoVolante(escolhidas, 'normal');
+                  }}
+                  className="text-xs font-bold px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
+                >
+                  Montar jogo com as {info.minimoDezenas} mais votadas
+                </button>
+              )}
+          </div>
+
+          {topDezenasPalpites.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="text-indigo-900 font-semibold mr-1">
+                Mais pedidas pela turma:
+              </span>
+              {topDezenasPalpites.slice(0, 12).map(([num, votos]) => (
+                <span
+                  key={num}
+                  className="px-2 py-0.5 rounded-full bg-white border border-indigo-200 text-indigo-900 font-mono font-bold"
+                >
+                  {String(num).padStart(2, '0')}{' '}
+                  <small className="font-sans text-indigo-600">({votos}x)</small>
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
+            {palpites.map((p) => (
+              <div
+                key={p.id}
+                className="bg-white rounded-xl p-3 border border-indigo-100 flex flex-col justify-between gap-2"
+              >
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <strong className="text-slate-800 truncate">
+                    {p.participante_nome}
+                  </strong>
+                  {!readOnly && onUsarDezenasNoVolante && (
+                    <button
+                      type="button"
+                      onClick={() => onUsarDezenasNoVolante(p.dezenas, 'normal')}
+                      className="text-indigo-700 hover:underline font-semibold shrink-0 cursor-pointer"
+                    >
+                      Usar no volante
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {p.dezenas.map((n) => (
+                    <span
+                      key={n}
+                      className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-900 font-mono font-bold text-xs flex items-center justify-center"
+                    >
+                      {String(n).padStart(2, '0')}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Barra de Filtro Rápido por Dezena */}
       {jogos.length > 0 && (
         <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2 flex-wrap">
@@ -88,9 +216,8 @@ export const GamesList: React.FC<GamesListProps> = ({
               <span>Filtrar por dezena apostada:</span>
             </span>
 
-            {/* Dezenas em pílulas clicáveis */}
             <div className="flex items-center gap-1 flex-wrap max-h-16 overflow-y-auto">
-              {todasDezenas.slice(0, 15).map((num) => {
+              {todasDezenas.slice(0, 18).map((num) => {
                 const isSelected = filtroDezena === num;
                 return (
                   <button
@@ -113,7 +240,9 @@ export const GamesList: React.FC<GamesListProps> = ({
           {filtroDezena !== null && (
             <div className="flex items-center gap-2">
               <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                Dezena {filtroDezena < 10 ? `0${filtroDezena}` : filtroDezena} presente em {jogosFiltrados.length} {jogosFiltrados.length === 1 ? 'jogo' : 'jogos'}
+                Dezena {filtroDezena < 10 ? `0${filtroDezena}` : filtroDezena} em{' '}
+                {jogosFiltrados.length}{' '}
+                {jogosFiltrados.length === 1 ? 'jogo' : 'jogos'}
               </span>
               <button
                 type="button"
@@ -133,11 +262,12 @@ export const GamesList: React.FC<GamesListProps> = ({
           <Ticket size={36} className="mx-auto text-slate-300 dark:text-slate-700" />
           <p className="text-sm font-medium">Nenhum jogo cadastrado ainda no bolão.</p>
           <p className="text-xs text-slate-500">
-            Use o volante manual, tire uma foto com nosso leitor OCR ou use o Gerar números!
+            Use o volante manual, tire foto com a câmera no leitor OCR ou aproveite os palpites do grupo!
           </p>
           <button
             type="button"
-            disabled={readOnly} onClick={onOpenNovoJogo}
+            disabled={readOnly}
+            onClick={() => onOpenNovoJogo('normal')}
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs"
           >
             <PlusCircle size={15} />
@@ -146,26 +276,36 @@ export const GamesList: React.FC<GamesListProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          {jogosFiltrados.map((jogo, index) => {
-            const gameNumber = jogos.length - index;
+          {jogosFiltrados.map((jogo) => {
+            const realIndex = jogos.findIndex((x) => x.id === jogo.id) + 1;
+            const isTroco = jogo.tipo_jogo === 'troco';
             return (
               <div
                 key={jogo.id}
                 className={`bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-xs border transition flex flex-col justify-between ${
                   filtroDezena && jogo.dezenas.includes(filtroDezena)
                     ? 'border-amber-400 ring-2 ring-amber-400/40'
-                    : 'border-slate-200/80 dark:border-slate-800'
+                    : isTroco
+                      ? 'border-amber-300/90 bg-amber-50/20'
+                      : 'border-slate-200/80 dark:border-slate-800'
                 }`}
               >
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between mb-3 gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                        Jogo #{gameNumber}
+                        Jogo #{realIndex}
                       </span>
-                      <span className="text-[11px] text-slate-400 font-medium">
-                        • {jogo.dezenas.length} dezenas
-                      </span>
+                      {isTroco ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                          <Coins size={10} />
+                          Troco · Divisão Igual
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          • {jogo.dezenas.length} dezenas
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -176,12 +316,12 @@ export const GamesList: React.FC<GamesListProps> = ({
                             setSelectedTicket({
                               open: true,
                               imageUrl: jogo.foto_url,
-                              index: gameNumber,
+                              index: realIndex,
                               dezenas: jogo.dezenas,
                               codigo: jogo.codigo_bilhete,
                             })
                           }
-                          className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-lg transition"
+                          className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg transition cursor-pointer"
                         >
                           <Receipt size={13} />
                           <span>Ver Comprovante</span>
@@ -190,8 +330,9 @@ export const GamesList: React.FC<GamesListProps> = ({
 
                       <button
                         type="button"
-                        disabled={readOnly} onClick={() => onRemoveJogo(jogo.id)}
-                        aria-label={`Excluir jogo #${gameNumber}`}
+                        disabled={readOnly}
+                        onClick={() => onRemoveJogo(jogo.id)}
+                        aria-label={`Excluir jogo #${realIndex}`}
                         className="p-1 text-slate-300 hover:text-red-500 rounded-md transition"
                         title="Excluir aposta"
                       >
@@ -200,7 +341,7 @@ export const GamesList: React.FC<GamesListProps> = ({
                     </div>
                   </div>
 
-                  {/* Dezenas Sorteadas / Marcadas em Bolinhas */}
+                  {/* Dezenas em Bolinhas */}
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {jogo.dezenas.map((num) => {
                       const isFiltroMatch = filtroDezena === num;
@@ -210,7 +351,9 @@ export const GamesList: React.FC<GamesListProps> = ({
                           className={`h-8 w-8 rounded-full font-extrabold text-xs flex items-center justify-center shadow-xs transition ${
                             isFiltroMatch
                               ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-300 scale-110'
-                              : 'bg-emerald-600 text-white'
+                              : isTroco
+                                ? 'bg-amber-600 text-white'
+                                : 'bg-emerald-600 text-white'
                           }`}
                         >
                           {num < 10 ? `0${num}` : num}
@@ -218,10 +361,19 @@ export const GamesList: React.FC<GamesListProps> = ({
                       );
                     })}
                   </div>
+
+                  {jogo.observacao && (
+                    <p className="text-xs text-slate-600 italic mb-2">
+                      {jogo.observacao}
+                    </p>
+                  )}
                 </div>
 
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
-                  <span>Registrado em: {jogo.criado_em}</span>
+                  <span>
+                    Registrado em:{' '}
+                    {new Date(jogo.criado_em).toLocaleDateString('pt-BR')}
+                  </span>
                   {jogo.codigo_bilhete && (
                     <span className="font-mono text-[10px] text-slate-500">
                       ID: {jogo.codigo_bilhete}
@@ -234,7 +386,6 @@ export const GamesList: React.FC<GamesListProps> = ({
         </div>
       )}
 
-      {/* Modal de Comprovante */}
       <TicketViewerModal
         isOpen={selectedTicket.open}
         onClose={() => setSelectedTicket({ ...selectedTicket, open: false })}

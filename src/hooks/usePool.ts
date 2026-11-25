@@ -1,20 +1,43 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PoolState } from "../types";
+import type {
+  NotificacaoEvento,
+  PalpiteParticipante,
+  PoolState,
+} from "../types";
+
 export interface PoolResponse extends PoolState {
   revision: number;
   adminToken?: string;
-  resumo?: { participantes: number; cotas: number; cotas_pagas: number };
+  createdToken?: string;
+  regrasHash?: string;
+  transparenciaLiberada?: boolean;
+  resumo?: {
+    participantes: number;
+    cotas: number;
+    cotas_pagas: number;
+    jogos?: number;
+    jogos_normais?: number;
+    jogos_troco?: number;
+    palpites?: number;
+  };
   rateioPessoal?: number;
+  rateioPessoalCotas?: number;
+  rateioPessoalTroco?: number;
   totalPremio?: number;
+  premioNormais?: number;
+  premioTroco?: number;
+  palpites?: (PalpiteParticipante & { is_meu?: boolean })[];
+  eventos?: NotificacaoEvento[];
   history?: { at: string; action: string; digest: string }[];
 }
+
 function route() {
   const hash = window.location.hash;
   if (hash.startsWith("#admin-"))
     return { admin: hash.slice(7), slug: "", personal: "" };
   if (hash.startsWith("#cota-")) {
     const [slug, personal] = hash.slice(6).split(".");
-    return { admin: "", slug, personal };
+    return { admin: "", slug, personal: personal || "" };
   }
   return {
     admin: "",
@@ -22,6 +45,7 @@ function route() {
     personal: "",
   };
 }
+
 async function request(url: string, options: RequestInit = {}) {
   const res = await fetch(url, {
     ...options,
@@ -33,6 +57,7 @@ async function request(url: string, options: RequestInit = {}) {
   if (!res.ok) throw new Error(body.error || "Não foi possível salvar.");
   return body as PoolResponse;
 }
+
 export function usePool() {
   const [location, setLocation] = useState(route);
   const [data, setData] = useState<PoolResponse | null>(null);
@@ -41,11 +66,13 @@ export function usePool() {
   const [error, setError] = useState("");
   const lock = useRef(false);
   const generation = useRef(0);
+
   useEffect(() => {
     const change = () => setLocation(route());
     window.addEventListener("hashchange", change);
     return () => window.removeEventListener("hashchange", change);
   }, []);
+
   const reload = useCallback(async () => {
     const current = ++generation.current;
     if (!location.admin && !location.slug) {
@@ -76,6 +103,7 @@ export function usePool() {
       if (current === generation.current) setLoading(false);
     }
   }, [location]);
+
   useEffect(() => {
     setData(null);
     void reload();
@@ -83,13 +111,17 @@ export function usePool() {
       generation.current++;
     };
   }, [reload]);
+
   useEffect(() => {
-    if (location.admin || !location.slug) return;
+    if (!location.admin && !location.slug) return;
     const timer = setInterval(() => {
-      if (document.visibilityState === "visible") void reload();
+      if (document.visibilityState === "visible" && !lock.current) {
+        void reload();
+      }
     }, 30000);
     return () => clearInterval(timer);
   }, [location, reload]);
+
   async function save(state: PoolState, action = "atualizado", create = false) {
     if (lock.current) return false;
     lock.current = true;
@@ -120,6 +152,67 @@ export function usePool() {
       setBusy(false);
     }
   }
+
+  async function participantAction(
+    action:
+      | "inscrever_publico"
+      | "aceitar_regras"
+      | "informar_pagamento"
+      | "enviar_palpite"
+      | "remover_palpite",
+    payload?: any,
+  ) {
+    if (lock.current || !location.slug) return false;
+    lock.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      const next = await request("/api/participante", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(location.personal
+            ? { "X-Participant-Token": location.personal }
+            : {}),
+        },
+        body: JSON.stringify({
+          slug: location.slug,
+          action,
+          payload,
+        }),
+      });
+      setData(next);
+      if (action === "inscrever_publico" && next.createdToken) {
+        window.location.hash = `cota-${location.slug}.${next.createdToken}`;
+      }
+      return true;
+    } catch (e) {
+      setError((e as Error).message);
+      return false;
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
+
+  async function ackEvents(ackUpTo: number) {
+    if (!location.admin) return false;
+    try {
+      await fetch("/api/eventos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + location.admin,
+        },
+        body: JSON.stringify({ ackUpTo }),
+      });
+      await reload();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async function uploadReceipt(image: string) {
     try {
       const response = await fetch("/api/comprovante", {
@@ -139,6 +232,7 @@ export function usePool() {
       return undefined;
     }
   }
+
   return {
     data,
     busy,
@@ -146,8 +240,12 @@ export function usePool() {
     error,
     reload,
     save,
+    participantAction,
+    ackEvents,
     uploadReceipt,
     adminToken: location.admin,
+    slug: location.slug,
+    personalToken: location.personal,
     isAdmin: !!location.admin,
   };
 }

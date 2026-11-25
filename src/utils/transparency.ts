@@ -224,6 +224,7 @@ export function generateCanonicalManifest(
     .sort((a, b) => a.id.localeCompare(b.id))
     .map((j) => ({
       id: j.id,
+      tipo: j.tipo_jogo || 'normal',
       dezenas: [...j.dezenas].sort((x, y) => x - y),
       codigo: j.codigo_bilhete || '',
       comprovante: j.foto_sha256 || j.foto_url || '',

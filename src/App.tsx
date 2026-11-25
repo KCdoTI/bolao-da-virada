@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { AlertTriangle, Calendar, ExternalLink, RefreshCw } from "lucide-react";
-import type { Bolao, Jogo, Participante, PoolState } from "./types";
+import { AlertTriangle, Bell, Calendar, ExternalLink, RefreshCw } from "lucide-react";
+import type { Bolao, Jogo, Participante, PoolState, TipoJogoBolao } from "./types";
 import { usePool } from "./hooks/usePool";
 import { useLotteryInfo } from "./hooks/useLotteryInfo";
 import { BrandLogo } from "./components/BrandLogo";
@@ -19,6 +19,7 @@ import {
 } from "./components/ConfigurarBolaoModal";
 import { PlanejadorModal } from "./components/PlanejadorModal";
 import { LegalFaqModal } from "./components/LegalFaqModal";
+import { AvisosN8nModal } from "./components/AvisosN8nModal";
 import { getModalidadeInfo, LOTTERY_SOURCES } from "./constants/lotteryCatalog";
 
 const blank: Bolao = {
@@ -96,6 +97,7 @@ export default function App() {
   const [selectedNextDraw, setSelectedNextDraw] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
   const [prefill, setPrefill] = useState<number[]>([]);
+  const [volanteTipoJogo, setVolanteTipoJogo] = useState<TipoJogoBolao>("normal");
 
   const state = pool.data;
   const currentModality = state?.bolao.modalidade || "Mega-Sena";
@@ -216,17 +218,24 @@ export default function App() {
       <>
         <PublicTransparencyView
           data={state}
+          busy={pool.busy}
           onReload={() => void pool.reload()}
+          onParticipantAction={pool.participantAction}
         />
         {pool.error && (
-          <p role="alert" className="error">
-            {pool.error}
-          </p>
+          <div className="page mt-4">
+            <p role="alert" className="error">
+              {pool.error}
+            </p>
+          </div>
         )}
       </>
     );
 
   const { bolao, participantes, jogos } = state;
+  const palpites = state.palpites || [];
+  const eventos = state.eventos || [];
+  const avisosNaoLidos = eventos.filter((e) => !e.lido).length;
   const adminBolao = { ...bolao, admin_token: pool.adminToken };
   const frozen =
     !!bolao.fechado_em || Date.now() >= Date.parse(bolao.data_limite);
@@ -355,6 +364,19 @@ export default function App() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn border-slate-700 text-white hover:bg-slate-800"
+              onClick={() => setModal("avisos")}
+            >
+              <Bell size={16} />
+              <span>Avisos & n8n</span>
+              {avisosNaoLidos > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 text-xs font-extrabold">
+                  {avisosNaoLidos}
+                </span>
+              )}
+            </button>
             <a
               className="btn"
               href={publicUrl}
@@ -368,6 +390,7 @@ export default function App() {
               disabled={frozen || pool.busy}
               onClick={() => {
                 setPrefill([]);
+                setVolanteTipoJogo("normal");
                 setModal("jogo");
               }}
             >
@@ -651,7 +674,7 @@ export default function App() {
               {t === "conferencia"
                 ? "Conferência"
                 : t === "jogos"
-                  ? "Jogos"
+                  ? `Jogos${palpites.length > 0 ? ` (${palpites.length} palpites)` : ""}`
                   : "Participantes"}
             </button>
           ))}
@@ -698,8 +721,16 @@ export default function App() {
             <GamesList
               readOnly={frozen}
               jogos={jogos}
-              onOpenNovoJogo={() => {
+              palpites={palpites}
+              modalidade={bolao.modalidade}
+              onOpenNovoJogo={(tipo = "normal") => {
                 setPrefill([]);
+                setVolanteTipoJogo(tipo);
+                setModal("jogo");
+              }}
+              onUsarDezenasNoVolante={(dezenas, tipo = "normal") => {
+                setPrefill(dezenas);
+                setVolanteTipoJogo(tipo);
                 setModal("jogo");
               }}
               onRemoveJogo={(id) => {
@@ -719,6 +750,7 @@ export default function App() {
                   [nums[i], nums[k]] = [nums[k], nums[i]];
                 }
                 setPrefill(nums.slice(0, info.minimoDezenas));
+                setVolanteTipoJogo("normal");
                 setModal("jogo");
               }}
             />
@@ -769,6 +801,7 @@ export default function App() {
           onSaveJogo={addGame}
           bolaoId={bolao.id}
           initialDezenas={prefill}
+          initialTipoJogo={volanteTipoJogo}
           modalidade={bolao.modalidade}
         />
       )}
@@ -839,6 +872,16 @@ export default function App() {
       )}
       {modal === "regras" && (
         <LegalFaqModal isOpen onClose={() => setModal(null)} />
+      )}
+      {modal === "avisos" && (
+        <AvisosN8nModal
+          isOpen
+          onClose={() => setModal(null)}
+          bolao={bolao}
+          adminToken={pool.adminToken}
+          eventos={eventos}
+          onAckAll={pool.ackEvents}
+        />
       )}
     </div>
   );
