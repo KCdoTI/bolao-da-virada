@@ -1,29 +1,34 @@
 import React, { useState } from "react";
+import { AlertTriangle, Calendar, ExternalLink, RefreshCw } from "lucide-react";
 import type { Bolao, Jogo, Participante, PoolState } from "./types";
 import { usePool } from "./hooks/usePool";
+import { useLotteryInfo } from "./hooks/useLotteryInfo";
 import { BrandLogo } from "./components/BrandLogo";
 import { FinancialSummary } from "./components/FinancialSummary";
 import { ShareBar } from "./components/ShareBar";
 import { ParticipantList } from "./components/ParticipantList";
 import { GamesList } from "./components/GamesList";
-import { PainelConferencia } from "./components/PainelConferencia";
+import { PainelConferencia, currency } from "./components/PainelConferencia";
 import { PublicTransparencyView } from "./components/PublicTransparencyView";
 import { VolanteModal } from "./components/VolanteModal";
 import { AddParticipantModal } from "./components/AddParticipantModal";
 import { PrintReportModal } from "./components/PrintReportModal";
-import { ConfigurarBolaoModal } from "./components/ConfigurarBolaoModal";
+import {
+  ConfigurarBolaoModal,
+  type OrganizadorParticipacaoConfig,
+} from "./components/ConfigurarBolaoModal";
 import { PlanejadorModal } from "./components/PlanejadorModal";
 import { LegalFaqModal } from "./components/LegalFaqModal";
-import { getModalidadeInfo } from "./constants/lotteryCatalog";
+import { getModalidadeInfo, LOTTERY_SOURCES } from "./constants/lotteryCatalog";
 
 const blank: Bolao = {
   id: "novo",
   nome: "Meu bolão",
-  modalidade: "Mega da Virada",
-  concurso_numero: 3100,
+  modalidade: "Mega-Sena",
+  concurso_numero: 3091,
   valor_cota: 12,
-  data_limite: "2026-12-30T18:00:00-03:00",
-  data_sorteio: "2027-01-01T11:00:00-03:00",
+  data_limite: new Date(Date.now() + 86400000 * 2).toISOString(),
+  data_sorteio: new Date(Date.now() + 86400000 * 2 + 10800000).toISOString(),
   chave_pix_organizador: "",
   status: "aberto",
   hash_slug: "novo",
@@ -33,35 +38,94 @@ const blank: Bolao = {
     "O organizador guarda os recibos originais e presta contas aos participantes.",
   ],
 };
+
+function syncOrganizerParticipant(
+  bolaoId: string,
+  nomeOrganizador: string | undefined,
+  currentList: Participante[],
+  orgConfig?: OrganizadorParticipacaoConfig,
+): Participante[] {
+  if (!orgConfig) return currentList;
+  const existingOrg = currentList.find((p) => p.is_organizador);
+
+  if (!orgConfig.participa) {
+    return existingOrg
+      ? currentList.filter((p) => p.id !== existingOrg.id)
+      : currentList;
+  }
+
+  const nomeFinal = (nomeOrganizador || "Organizador").trim();
+  if (existingOrg) {
+    return currentList.map((p) =>
+      p.id === existingOrg.id
+        ? {
+            ...p,
+            nome: nomeFinal,
+            telefone: orgConfig.telefone || p.telefone,
+            qtd_cotas: orgConfig.cotas,
+            status_pagamento: orgConfig.pago ? "Pago" : "Pendente",
+            is_organizador: true,
+          }
+        : p,
+    );
+  }
+
+  return [
+    {
+      id: bolaoId === "novo" ? "org-init" : crypto.randomUUID(),
+      bolao_id: bolaoId,
+      nome: nomeFinal,
+      telefone: orgConfig.telefone,
+      qtd_cotas: orgConfig.cotas,
+      status_pagamento: orgConfig.pago ? "Pago" : "Pendente",
+      data_registro: new Date().toISOString(),
+      is_organizador: true,
+    },
+    ...currentList,
+  ];
+}
+
 export default function App() {
   const pool = usePool();
   const [tab, setTab] = useState<"participantes" | "jogos" | "conferencia">(
     "participantes",
   );
   const [modal, setModal] = useState<string | null>(null);
+  const [editingParticipant, setEditingParticipant] =
+    useState<Participante | null>(null);
+  const [selectedNextDraw, setSelectedNextDraw] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
   const [prefill, setPrefill] = useState<number[]>([]);
+
   const state = pool.data;
+  const currentModality = state?.bolao.modalidade || "Mega-Sena";
+  const { lotteryInfo, loadingLottery, refreshLottery } = useLotteryInfo(
+    currentModality,
+    Boolean(state && pool.isAdmin),
+  );
+
   async function save(next: PoolState, action = "atualizado") {
     setNotice("");
     const ok = await pool.save(next, action);
     if (ok) setNotice("Alteração salva no servidor.");
     return ok;
   }
+
   if (pool.loading && !state)
     return (
       <main className="page py-12" role="status">
         Carregando bolão…
       </main>
     );
+
   if (!state)
     return (
       <main className="page py-12 space-y-6">
         <BrandLogo size={56} />
         <h1 className="text-3xl font-bold">Seu bolão, com as contas em dia.</h1>
         <p>
-          Cadastre participantes, registre jogos e compartilhe a conferência do
-          grupo.
+          Cadastre participantes, puxe concursos e datas oficiais da Caixa,
+          registre bilhetes e compartilhe a conferência do grupo.
         </p>
         {pool.error && (
           <p role="alert" className="error">
@@ -127,9 +191,15 @@ export default function App() {
             onClose={() => setModal(null)}
             bolaoAtual={blank}
             busy={pool.busy}
-            onSalvarBolao={async (b) => {
+            onSalvarBolao={async (b, orgConfig) => {
+              const initialParticipants = syncOrganizerParticipant(
+                b.id,
+                b.nome_organizador,
+                [],
+                orgConfig,
+              );
               const ok = await pool.save(
-                { bolao: b, participantes: [], jogos: [] },
+                { bolao: b, participantes: initialParticipants, jogos: [] },
                 "criado",
                 true,
               );
@@ -140,6 +210,7 @@ export default function App() {
         )}
       </main>
     );
+
   if (!pool.isAdmin)
     return (
       <>
@@ -154,11 +225,32 @@ export default function App() {
         )}
       </>
     );
+
   const { bolao, participantes, jogos } = state;
   const adminBolao = { ...bolao, admin_token: pool.adminToken };
   const frozen =
     !!bolao.fechado_em || Date.now() >= Date.parse(bolao.data_limite);
   const info = getModalidadeInfo(bolao.modalidade);
+  const participanteOrganizador =
+    participantes.find((p) => p.is_organizador) || null;
+
+  // Verifica se o concurso já passou / venceu sem ter sido apurado
+  const drawPassedByDate = Boolean(
+    bolao.data_sorteio && Date.now() > Date.parse(bolao.data_sorteio),
+  );
+  const drawAlreadyHeldOnCaixa = Boolean(
+    lotteryInfo && lotteryInfo.ultimoConcurso.numero >= bolao.concurso_numero,
+  );
+  const isContestOverdue =
+    !bolao.resultado && (drawPassedByDate || drawAlreadyHeldOnCaixa);
+
+  const availableFutureDraws = (lotteryInfo?.opcoesConcursos || []).filter(
+    (o) => o.numero > bolao.concurso_numero,
+  );
+  const targetMigrationDraw =
+    availableFutureDraws.find((o) => o.numero === selectedNextDraw) ||
+    availableFutureDraws[0];
+
   const addParticipant = async (p: Omit<Participante, "id">) => {
     const ok = await save({
       ...state,
@@ -167,6 +259,24 @@ export default function App() {
     if (ok) setModal(null);
     return ok;
   };
+
+  const editParticipant = async (updated: Participante) => {
+    const ok = await save(
+      {
+        ...state,
+        participantes: participantes.map((p) =>
+          p.id === updated.id ? updated : p,
+        ),
+      },
+      "participante_editado",
+    );
+    if (ok) {
+      setEditingParticipant(null);
+      setModal(null);
+    }
+    return ok;
+  };
+
   const addGame = async (j: Omit<Jogo, "id" | "criado_em">) => {
     if (j.foto_url?.startsWith("data:")) {
       const url = await pool.uploadReceipt(j.foto_url);
@@ -192,7 +302,33 @@ export default function App() {
     }
     return false;
   };
+
+  const handleMigrateOverdueContest = async () => {
+    if (!targetMigrationDraw) return;
+    const confirmMsg = `Mudar este bolão do concurso #${bolao.concurso_numero} para o concurso #${targetMigrationDraw.numero} (sorteio previsto em ${targetMigrationDraw.dataSorteioBr})?\n\nAs participações e jogos serão mantidos e o prazo será reaberto até ${new Date(targetMigrationDraw.prazoSugeridoIso).toLocaleString("pt-BR")}.`;
+    if (!confirm(confirmMsg)) return;
+
+    await save(
+      {
+        ...state,
+        bolao: {
+          ...bolao,
+          modalidade: targetMigrationDraw.modalidadeSugerida || bolao.modalidade,
+          concurso_numero: targetMigrationDraw.numero,
+          data_sorteio: targetMigrationDraw.dataSorteioIso,
+          data_limite: targetMigrationDraw.prazoSugeridoIso,
+          status: "aberto",
+        },
+      },
+      "adiar_concurso",
+    );
+  };
+
   const publicUrl = "/#b-" + bolao.hash_slug;
+  const officialPortalUrl =
+    LOTTERY_SOURCES[info.modalidadeBase as keyof typeof LOTTERY_SOURCES] ||
+    "https://loterias.caixa.gov.br/";
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-16">
       <header className="bg-slate-900 text-white">
@@ -207,7 +343,14 @@ export default function App() {
                 {bolao.nome}
               </h1>
               <p className="text-sm text-slate-300">
-                {bolao.modalidade} · Concurso {bolao.concurso_numero}
+                {info.icone} {bolao.modalidade} · Concurso #{bolao.concurso_numero}
+                {bolao.data_sorteio && (
+                  <>
+                    {" "}
+                    · Sorteio:{" "}
+                    {new Date(bolao.data_sorteio).toLocaleDateString("pt-BR")}
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -233,21 +376,89 @@ export default function App() {
           </div>
         </div>
       </header>
+
       <main className="page py-6 space-y-5">
+        {/* Banner de Alerta de Concurso Vencido / Passado */}
+        {isContestOverdue && (
+          <section
+            role="alert"
+            className="p-4 sm:p-5 rounded-2xl border-2 border-amber-400 bg-amber-50 text-amber-950 space-y-3"
+          >
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={22} className="text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <h2 className="font-bold text-base">
+                  Atenção: o concurso #{bolao.concurso_numero} já passou ou foi sorteado
+                </h2>
+                <p className="text-sm">
+                  {drawAlreadyHeldOnCaixa
+                    ? `A Caixa já divulgou até o concurso #${lotteryInfo?.ultimoConcurso.numero} (${lotteryInfo?.ultimoConcurso.dataApuracao}). `
+                    : "A data prevista para este concurso já foi ultrapassada. "}
+                  Se vocês já registraram as apostas deste concurso, faça a apuração oficial. Se adiaram o bolão, escolha abaixo o próximo concurso da Caixa:
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 pt-1">
+              <button
+                type="button"
+                className="btn primary"
+                onClick={() => setTab("conferencia")}
+              >
+                Conferir resultado do concurso #{bolao.concurso_numero}
+              </button>
+
+              {availableFutureDraws.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    aria-label="Escolher novo concurso da Caixa"
+                    value={String(targetMigrationDraw?.numero || "")}
+                    onChange={(e) => setSelectedNextDraw(Number(e.target.value))}
+                    className="border border-amber-400 bg-white rounded-xl px-3 py-2.5 text-sm font-semibold min-h-[44px]"
+                  >
+                    {availableFutureDraws.map((op) => (
+                      <option key={op.numero} value={String(op.numero)}>
+                        {op.rotulo}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={pool.busy}
+                    onClick={() => void handleMigrateOverdueContest()}
+                    className="btn bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-600 font-bold"
+                  >
+                    Mudar para concurso #{targetMigrationDraw?.numero}
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Status do Bolão + Datas */}
         <div className="card flex flex-wrap justify-between gap-4 items-center">
-          <div>
-            <strong>
+          <div className="space-y-1">
+            <strong className="text-base block">
               {frozen ? "Participações encerradas" : "Participações abertas"}
             </strong>
             <p className="text-sm">
-              Prazo: {new Date(bolao.data_limite).toLocaleString("pt-BR")}
+              Prazo de pagamento:{" "}
+              <strong>{new Date(bolao.data_limite).toLocaleString("pt-BR")}</strong>
             </p>
-            {bolao.data_sorteio && (
-              <p className="text-sm">
+            <p className="text-sm flex items-center gap-1.5 text-emerald-800 font-medium">
+              <Calendar size={14} />
+              <span>
                 Sorteio previsto:{" "}
-                {new Date(bolao.data_sorteio).toLocaleString("pt-BR")}
-              </p>
-            )}
+                <strong>
+                  {bolao.data_sorteio
+                    ? new Date(bolao.data_sorteio).toLocaleString("pt-BR")
+                    : lotteryInfo?.proximoConcurso.numero === bolao.concurso_numero
+                      ? lotteryInfo.proximoConcurso.dataProximoConcurso
+                      : "Consulte na configuração"}
+                </strong>
+              </span>
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
@@ -256,6 +467,13 @@ export default function App() {
               onClick={() => setModal("config")}
             >
               Configurar
+            </button>
+            <button
+              className="btn"
+              disabled={pool.busy}
+              onClick={() => setModal("planejar")}
+            >
+              Planejar orçamento
             </button>
             {!frozen && (
               <button
@@ -285,6 +503,69 @@ export default function App() {
             </button>
           </div>
         </div>
+
+        {/* Resumo ao vivo do Portal Loterias Caixa */}
+        {lotteryInfo && (
+          <section className="card bg-gradient-to-r from-emerald-50/80 to-white border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                  Portal Loterias Caixa · Ao Vivo
+                </span>
+                <span className="text-xs text-slate-500">
+                  Último sorteio #{lotteryInfo.ultimoConcurso.numero} em{" "}
+                  {lotteryInfo.ultimoConcurso.dataApuracao} (
+                  {lotteryInfo.ultimoConcurso.dezenas
+                    .map((n) => String(n).padStart(2, "0"))
+                    .join(" - ")}
+                  )
+                </span>
+              </div>
+              <p className="text-slate-800">
+                Próximo concurso oficial:{" "}
+                <strong>
+                  #{lotteryInfo.proximoConcurso.numero} (
+                  {lotteryInfo.proximoConcurso.dataProximoConcurso})
+                </strong>
+                {lotteryInfo.proximoConcurso.valorEstimado > 0 && (
+                  <>
+                    {" "}
+                    · Estimativa de prêmio:{" "}
+                    <strong className="text-emerald-700">
+                      {currency(lotteryInfo.proximoConcurso.valorEstimado)}
+                    </strong>
+                  </>
+                )}
+                {lotteryInfo.ultimoConcurso.acumulado && (
+                  <span className="ml-2 text-xs font-bold text-amber-700">
+                    🔥 ACUMULADO!
+                  </span>
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => void refreshLottery()}
+                disabled={loadingLottery}
+                className="text-xs font-semibold px-3 py-2 rounded-lg border border-emerald-300 bg-white hover:bg-emerald-50 flex items-center gap-1 cursor-pointer"
+              >
+                <RefreshCw size={13} className={loadingLottery ? "animate-spin" : ""} />
+                <span>Atualizar</span>
+              </button>
+              <a
+                href={officialPortalUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 flex items-center gap-1"
+              >
+                <span>Site da Caixa</span>
+                <ExternalLink size={13} />
+              </a>
+            </div>
+          </section>
+        )}
+
         <div aria-live="polite">{pool.busy ? "Salvando…" : notice}</div>
         {pool.error && (
           <div className="error" role="alert">
@@ -294,11 +575,13 @@ export default function App() {
             </button>
           </div>
         )}
+
         <FinancialSummary
           bolao={bolao}
           participantes={participantes}
           jogos={jogos}
         />
+
         <ShareBar
           bolao={adminBolao}
           participantes={participantes}
@@ -307,9 +590,10 @@ export default function App() {
             window.open(publicUrl, "_blank", "noopener,noreferrer")
           }
         />
+
         <details className="card">
           <summary className="cursor-pointer font-semibold">
-            Ferramentas e regras
+            Mais ferramentas e regras
           </summary>
           <div className="flex flex-wrap gap-2 mt-4">
             <button className="btn" onClick={() => setModal("planejar")}>
@@ -349,6 +633,7 @@ export default function App() {
             Caixa. A escolha de números não prevê sorteios.
           </p>
         </details>
+
         <nav
           aria-label="Seções do bolão"
           className="grid grid-cols-3 gap-1 bg-slate-200 rounded-xl p-1"
@@ -371,6 +656,7 @@ export default function App() {
             </button>
           ))}
         </nav>
+
         <fieldset disabled={pool.busy} className="min-w-0">
           {tab === "participantes" && (
             <ParticipantList
@@ -391,6 +677,10 @@ export default function App() {
                   ),
                 })
               }
+              onEditParticipante={(p) => {
+                setEditingParticipant(p);
+                setModal("participante");
+              }}
               onRemoveParticipante={(id) => {
                 if (confirm("Remover participante?"))
                   void save({
@@ -398,7 +688,10 @@ export default function App() {
                     participantes: participantes.filter((p) => p.id !== id),
                   });
               }}
-              onOpenAddModal={() => setModal("participante")}
+              onOpenAddModal={() => {
+                setEditingParticipant(null);
+                setModal("participante");
+              }}
             />
           )}
           {tab === "jogos" && (
@@ -431,6 +724,7 @@ export default function App() {
             />
           )}
         </fieldset>
+
         {tab === "conferencia" && (
           <PainelConferencia
             key={bolao.modalidade}
@@ -447,6 +741,7 @@ export default function App() {
             }
           />
         )}
+
         {state.history && (
           <details className="card">
             <summary>Histórico de gravações ({state.history.length})</summary>
@@ -466,6 +761,7 @@ export default function App() {
           </details>
         )}
       </main>
+
       {modal === "jogo" && (
         <VolanteModal
           isOpen
@@ -479,8 +775,13 @@ export default function App() {
       {modal === "participante" && (
         <AddParticipantModal
           isOpen
-          onClose={() => setModal(null)}
+          onClose={() => {
+            setEditingParticipant(null);
+            setModal(null);
+          }}
           onAdd={addParticipant}
+          onEdit={editParticipant}
+          participanteEditando={editingParticipant}
           bolaoId={bolao.id}
           valorCota={bolao.valor_cota}
         />
@@ -490,10 +791,21 @@ export default function App() {
           isOpen
           onClose={() => setModal(null)}
           bolaoAtual={bolao}
+          participanteOrganizadorAtual={participanteOrganizador}
           busy={pool.busy}
           frozen={frozen}
-          onSalvarBolao={async (b) => {
-            const ok = await save({ ...state, bolao: b });
+          onSalvarBolao={async (b, orgConfig) => {
+            const nextParticipants = syncOrganizerParticipant(
+              bolao.id,
+              b.nome_organizador,
+              participantes,
+              orgConfig,
+            );
+            const ok = await save({
+              ...state,
+              bolao: b,
+              participantes: nextParticipants,
+            });
             if (ok) setModal(null);
             return ok;
           }}
@@ -509,7 +821,21 @@ export default function App() {
         />
       )}
       {modal === "planejar" && (
-        <PlanejadorModal bolao={bolao} onClose={() => setModal(null)} />
+        <PlanejadorModal
+          bolao={bolao}
+          participantes={participantes}
+          jogos={jogos}
+          onClose={() => setModal(null)}
+          onIrParaVolante={!frozen ? (qtdDezenas) => {
+            const nums = Array.from({ length: info.universoNumeros }, (_, i) => i + 1);
+            for (let i = nums.length - 1; i > 0; i--) {
+              const k = Math.floor(Math.random() * (i + 1));
+              [nums[i], nums[k]] = [nums[k], nums[i]];
+            }
+            setPrefill(nums.slice(0, qtdDezenas));
+            setModal("jogo");
+          } : undefined}
+        />
       )}
       {modal === "regras" && (
         <LegalFaqModal isOpen onClose={() => setModal(null)} />

@@ -64,6 +64,7 @@ const schema = z.object({
         data_registro: text.optional(),
         token_acesso: text.optional(),
         pago_em: date.optional(),
+        is_organizador: z.boolean().optional(),
       }),
     )
     .max(500),
@@ -192,6 +193,7 @@ export async function createPool(store: PoolStore, input: unknown) {
   const state = validateState(input);
   const adminToken = token();
   const id = randomUUID();
+  const now = new Date().toISOString();
   state.bolao = {
     ...state.bolao,
     id,
@@ -200,7 +202,14 @@ export async function createPool(store: PoolStore, input: unknown) {
     fechado_em: undefined,
     resultado: undefined,
   };
-  state.participantes = [];
+  state.participantes = state.participantes.slice(0, 10).map((p) => ({
+    ...p,
+    id: randomUUID(),
+    bolao_id: id,
+    token_acesso: token(),
+    data_registro: now,
+    pago_em: p.status_pagamento === "Pago" ? now : undefined,
+  }));
   state.jogos = [];
   const row: StoredPool = {
     id,
@@ -280,13 +289,27 @@ export async function updatePool(
       prazo: s.bolao.data_limite,
       regras: s.bolao.regras,
     });
+  const isReschedule = action === "adiar_concurso";
+  if (isReschedule) {
+    if (old.bolao.resultado)
+      throw new HttpError(409, "Concurso já apurado não pode ser alterado.");
+    if (Date.parse(next.bolao.data_limite) <= Date.now())
+      throw new HttpError(400, "Defina um novo prazo futuro para o próximo concurso.");
+    if (
+      next.bolao.concurso_numero === old.bolao.concurso_numero &&
+      next.bolao.modalidade === old.bolao.modalidade &&
+      next.bolao.data_limite === old.bolao.data_limite
+    ) {
+      throw new HttpError(400, "Selecione o novo concurso ou um novo prazo.");
+    }
+  }
   const expired = Date.now() >= Date.parse(old.bolao.data_limite);
-  if ((old.bolao.fechado_em || expired) && financial(next) !== financial(old))
+  if (!isReschedule && (old.bolao.fechado_em || expired) && financial(next) !== financial(old))
     throw new HttpError(
       409,
       "Prazo encerrado: participantes, pagamentos, regras e jogos estão congelados.",
     );
-  if (old.bolao.fechado_em && next.bolao.status === "aberto")
+  if (!isReschedule && old.bolao.fechado_em && next.bolao.status === "aberto")
     throw new HttpError(409, "Um bolão fechado não pode ser reaberto.");
   if (next.bolao.resultado && !old.bolao.fechado_em && !expired)
     throw new HttpError(409, "Feche as participações antes de apurar.");
@@ -312,14 +335,18 @@ export async function updatePool(
           : undefined,
     };
   });
-  next.bolao.fechado_em =
-    old.bolao.fechado_em ||
-    (next.bolao.status !== "aberto" || expired ? now : undefined);
+  next.bolao.fechado_em = isReschedule
+    ? undefined
+    : old.bolao.fechado_em ||
+      (next.bolao.status !== "aberto" || expired ? now : undefined);
   next.bolao.status = next.bolao.resultado
     ? "sorteado"
     : next.bolao.fechado_em
       ? "encerrado"
       : "aberto";
+  const historyAction = isReschedule
+    ? `concurso_atualizado_${old.bolao.concurso_numero}_para_${next.bolao.concurso_numero}`
+    : action;
   const updated = {
     ...row,
     slug: next.bolao.hash_slug,
@@ -327,7 +354,7 @@ export async function updatePool(
     payload: next,
     history: [
       ...row.history,
-      { at: now, action, digest: hashToken(JSON.stringify(next)) },
+      { at: now, action: historyAction, digest: hashToken(JSON.stringify(next)) },
     ],
   };
   if (!(await store.update(updated, revision)))

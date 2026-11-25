@@ -89,14 +89,19 @@ Fluxo proposto (no **link pessoal** `#cota-...`, pois aceite precisa de identida
 
 ---
 
-## Ordem sugerida
+## Ordem sugerida e status de entrega
 
-1. **Lote A — próximo piloto (P1):** editar participante · organizador participa · câmera + compressão · planejador em tempo real + carteira mista · concurso/data da Caixa + alerta de concurso vencido.
-2. **Lote B (P2):** aceite → QR PIX → “já paguei” → transparência · palpites · troco fase 1 · eventos para o Raspberry.
+1. **Lote A — Entregue em 25/11/2026 (P1):**
+   - ✅ **Editar participante:** modal unificado de adição/edição (nome, WhatsApp, cotas e reversão automática de status quando aumenta cotas de quem já estava pago).
+   - ✅ **Organizador participa:** opção explícita ao criar/configurar o bolão definindo se o organizador participa, quantas cotas terá e insígnia `Organizador` na lista.
+   - ✅ **Câmera + compressão + rotação no OCR:** botões separados *"Tirar foto com a câmera"* e *"Escolher da galeria"*, compressão automática no aparelho de fotos até 15 MB para JPEG leve (< 1,8 MB) e botão *"Girar 90°"*.
+   - ✅ **Planejador em tempo real + carteira mista:** puxa automaticamente participantes, cotas pagas, cotas totais e jogos já lançados, permitindo combinar múltiplas faixas de dezenas na mesma simulação.
+   - ✅ **Concursos e datas ao vivo da Caixa (`/api/loteria`):** seleção de concurso por lista oficial/prevista (sem digitar no escuro), preenchimento automático da data prevista do sorteio visível para todos e alerta de concurso vencido com opção de migração auditada (`adiar_concurso`).
+2. **Lote B — Próximo lote (P2):** aceite → QR PIX → “já paguei” → transparência liberada após pagamento confirmado · palpites · troco fase 1 (divisão igualitária) · eventos pull para o n8n no Raspberry.
 3. **Lote C (P3):** contatos/vCard · troco em outra modalidade · auto-inscrição pelo link público.
 
-## Decisões pendentes (Kelvin)
-- Transparência completa libera **após aceite** ou **após pagamento confirmado**?
-- Prêmio do troco: rateio pelas cotas pagas (padrão) ou outra regra?
-- Avisos: modelo pull (recomendado) ou expor webhook do Raspberry?
-- Ferramenta no Raspberry para os avisos: n8n + Baileys (`wa_akg`) — confirmar.
+## Decisões confirmadas (Kelvin — 25/11/2026)
+- **Transparência completa no link pessoal:** libera **só depois que o organizador confirmar o pagamento** (`status_pagamento === 'Pago'`).
+- **Prêmio dos jogos do troco:** **dividido de maneira igual** entre os participantes confirmados (divisão igualitária por pessoa paga, independente da quantidade de cotas).
+- **Ferramenta no Raspberry para os avisos:** confirmado **n8n + WhatsApp já existente**, operando em modelo *pull* (n8n consulta a API do bolão periodicamente).
+- **Execução:** Lote A autorizado e iniciado em 25/11/2026.

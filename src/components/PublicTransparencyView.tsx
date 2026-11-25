@@ -1,7 +1,11 @@
 import React from "react";
+import { Calendar, ExternalLink } from "lucide-react";
 import type { PoolResponse } from "../hooks/usePool";
+import { useLotteryInfo } from "../hooks/useLotteryInfo";
 import { ResultadoView, currency } from "./PainelConferencia";
 import { BrandLogo } from "./BrandLogo";
+import { getModalidadeInfo, LOTTERY_SOURCES } from "../constants/lotteryCatalog";
+
 export function PublicTransparencyView({
   data,
   onReload,
@@ -11,6 +15,12 @@ export function PublicTransparencyView({
 }) {
   const { bolao, jogos, participantes, resumo } = data;
   const own = participantes[0];
+  const info = getModalidadeInfo(bolao.modalidade);
+  const { lotteryInfo } = useLotteryInfo(bolao.modalidade, true);
+  const officialUrl =
+    LOTTERY_SOURCES[info.modalidadeBase as keyof typeof LOTTERY_SOURCES] ||
+    "https://loterias.caixa.gov.br/";
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="bg-slate-900 text-white">
@@ -25,28 +35,85 @@ export function PublicTransparencyView({
         </div>
       </header>
       <main className="page py-7 space-y-5">
-        <div className="card">
-          <p>
-            {bolao.modalidade} · Concurso {bolao.concurso_numero}
+        <div className="card space-y-2">
+          <p className="font-semibold text-lg">
+            {info.icone} {bolao.modalidade} · Concurso #{bolao.concurso_numero} · Cota:{" "}
+            {currency(bolao.valor_cota)}
           </p>
-          <p>Prazo: {new Date(bolao.data_limite).toLocaleString("pt-BR")}</p>
-          <p>
+          <p className="text-sm">
+            Prazo limite de pagamento:{" "}
+            <strong>{new Date(bolao.data_limite).toLocaleString("pt-BR")}</strong>
+          </p>
+          {(bolao.data_sorteio ||
+            lotteryInfo?.proximoConcurso.numero === bolao.concurso_numero) && (
+            <p className="text-sm text-emerald-800 font-medium flex items-center gap-1.5">
+              <Calendar size={14} />
+              <span>
+                Data prevista do sorteio:{" "}
+                <strong>
+                  {bolao.data_sorteio
+                    ? new Date(bolao.data_sorteio).toLocaleString("pt-BR")
+                    : lotteryInfo?.proximoConcurso.dataProximoConcurso}
+                </strong>
+              </span>
+            </p>
+          )}
+          <p className="text-sm font-medium">
+            Status:{" "}
             {bolao.fechado_em || Date.now() >= Date.parse(bolao.data_limite)
               ? "Participações encerradas"
               : "Participações abertas"}
           </p>
-          <p className="mt-3">
-            {resumo?.participantes} participantes · {resumo?.cotas_pagas} de{" "}
-            {resumo?.cotas} cotas confirmadas · {jogos.length} jogos
+          <p className="pt-1 text-sm">
+            {resumo?.participantes} participante(s) · {resumo?.cotas_pagas} de{" "}
+            {resumo?.cotas} cota(s) confirmada(s) · {jogos.length} jogo(s)
           </p>
-          <button className="btn mt-3" onClick={onReload}>
-            Atualizar informações
-          </button>
-          <p className="text-xs mt-2">
+          <div className="flex flex-wrap gap-2 pt-2">
+            <button className="btn" onClick={onReload}>
+              Atualizar informações
+            </button>
+            <a
+              className="btn"
+              href={officialUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <span>Portal Loterias Caixa</span>
+              <ExternalLink size={14} />
+            </a>
+          </div>
+          <p className="text-xs text-slate-500">
             Atualização automática a cada 30 segundos enquanto esta página está
             visível.
           </p>
         </div>
+
+        {/* Informações atualizadas da Caixa para os participantes */}
+        {lotteryInfo && !bolao.resultado && (
+          <section className="card bg-emerald-50/60 border-emerald-200 space-y-1 text-sm">
+            <p className="text-xs font-bold uppercase tracking-wider text-emerald-800">
+              Informações atualizadas das Loterias Caixa
+            </p>
+            <p>
+              Concurso em aberto na Caixa:{" "}
+              <strong>
+                #{lotteryInfo.proximoConcurso.numero} (sorteio{" "}
+                {lotteryInfo.proximoConcurso.dataProximoConcurso})
+              </strong>
+              {lotteryInfo.proximoConcurso.valorEstimado > 0 && (
+                <>
+                  {" "}
+                  · Prêmio estimado:{" "}
+                  <strong className="text-emerald-800">
+                    {currency(lotteryInfo.proximoConcurso.valorEstimado)}
+                  </strong>
+                </>
+              )}
+              {lotteryInfo.ultimoConcurso.acumulado && " · Acumulado!"}
+            </p>
+          </section>
+        )}
+
         {own && (
           <section className="card space-y-3">
             <h2 className="text-xl font-bold">Sua participação, {own.nome}</h2>
@@ -66,7 +133,9 @@ export function PublicTransparencyView({
             </p>
           </section>
         )}
+
         <ResultadoView bolao={bolao} jogos={jogos} />
+
         <section className="card space-y-4">
           <h2 className="text-xl font-bold">Jogos registrados</h2>
           {jogos.length === 0 ? (
@@ -91,6 +160,7 @@ export function PublicTransparencyView({
             organizador para proteger dados e códigos do bilhete.
           </p>
         </section>
+
         <section className="card">
           <h2 className="text-xl font-bold mb-3">Regras do grupo</h2>
           <ul className="list-disc pl-5 space-y-2">

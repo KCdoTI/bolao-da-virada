@@ -48,6 +48,8 @@ export default async function handler(req: any, res: any) {
     if (
       ![
         "atualizado",
+        "participante_editado",
+        "adiar_concurso",
         "fechado",
         "resultado_manual",
         "importar_caixa",

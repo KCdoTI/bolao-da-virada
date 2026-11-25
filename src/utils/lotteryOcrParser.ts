@@ -1,5 +1,5 @@
-import { getModalidadeInfo } from '../constants/lotteryCatalog';
-import { validarDezenas } from './validation';
+import { getModalidadeInfo } from '../constants/lotteryCatalog.js';
+import { validarDezenas } from './validation.js';
 export interface ExtractedGameCandidate {
   rawLine: string;
   dezenas: number[];
@@ -7,59 +7,126 @@ export interface ExtractedGameCandidate {
   descricao: string;
 }
 
-/**
- * Aplica contraste e binarização via Canvas para melhorar o OCR
- * em comprovantes impressos em bobina térmica amarelada/acinzentada.
- */
-export async function preprocessTicketImage(file: File): Promise<string> {
+function loadImageElement(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Não foi possível abrir esta imagem.'));
+    img.src = src;
+  });
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return resolve(img.src);
-
-        // Limita a resolução máxima para manter alta velocidade no OCR
-        const maxDim = 1200;
-        let w = img.width;
-        let h = img.height;
-        if (w > maxDim || h > maxDim) {
-          if (w > h) {
-            h = Math.round((h * maxDim) / w);
-            w = maxDim;
-          } else {
-            w = Math.round((w * maxDim) / h);
-            h = maxDim;
-          }
-        }
-
-        canvas.width = w;
-        canvas.height = h;
-        ctx.drawImage(img, 0, 0, w, h);
-
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imgData.data;
-
-        // Binarização em escala de cinza com corte limpo
-        for (let i = 0; i < data.length; i += 4) {
-          const avg = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-          const threshold = avg > 130 ? 255 : 0;
-          data[i] = threshold;
-          data[i + 1] = threshold;
-          data[i + 2] = threshold;
-        }
-
-        ctx.putImageData(imgData, 0, 0);
-        resolve(canvas.toDataURL('image/jpeg', 0.9));
-      };
-      img.onerror = () => reject(new Error('Erro ao carregar imagem'));
-      img.src = e.target?.result as string;
-    };
-    reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('Erro ao ler o arquivo da foto.'));
     reader.readAsDataURL(file);
   });
+}
+
+/**
+ * Redimensiona, corrige rotação opcional (0/90/180/270) e comprime fotos grandes
+ * da câmera do celular (ex.: 4 a 15 MB) para JPEG nítido abaixo de 1,8 MB,
+ * garantindo armazenamento seguro no servidor sem estourar o limite de 2 MB.
+ */
+export async function prepareReceiptImage(
+  source: File | string,
+  rotationDeg = 0,
+): Promise<string> {
+  const rawUrl = typeof source === 'string' ? source : await readFileAsDataUrl(source);
+  const img = await loadImageElement(rawUrl);
+
+  const normRot = ((rotationDeg % 360) + 360) % 360;
+  const swapSides = normRot === 90 || normRot === 270;
+
+  const renderAt = (maxDim: number, quality: number): string => {
+    let w = img.width;
+    let h = img.height;
+    if (w > maxDim || h > maxDim) {
+      if (w > h) {
+        h = Math.round((h * maxDim) / w);
+        w = maxDim;
+      } else {
+        w = Math.round((w * maxDim) / h);
+        h = maxDim;
+      }
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = swapSides ? h : w;
+    canvas.height = swapSides ? w : h;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return rawUrl;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate((normRot * Math.PI) / 180);
+    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+    ctx.restore();
+
+    return canvas.toDataURL('image/jpeg', quality);
+  };
+
+  let jpeg = renderAt(1600, 0.85);
+  // Se ainda ficar acima de ~1.8 MB em bytes reais, reduz um degrau
+  if (jpeg.length * 0.75 > 1.8 * 1024 * 1024) {
+    jpeg = renderAt(1280, 0.74);
+  }
+  return jpeg;
+}
+
+/**
+ * Gera cópia em alto contraste / binarizada a partir de um DataURL para leitura OCR.
+ */
+export async function preprocessDataUrlForOcr(dataUrl: string): Promise<string> {
+  const img = await loadImageElement(dataUrl);
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return dataUrl;
+
+  const maxDim = 1200;
+  let w = img.width;
+  let h = img.height;
+  if (w > maxDim || h > maxDim) {
+    if (w > h) {
+      h = Math.round((h * maxDim) / w);
+      w = maxDim;
+    } else {
+      w = Math.round((w * maxDim) / h);
+      h = maxDim;
+    }
+  }
+
+  canvas.width = w;
+  canvas.height = h;
+  ctx.drawImage(img, 0, 0, w, h);
+
+  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imgData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const avg = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    const threshold = avg > 135 ? 255 : 0;
+    data[i] = threshold;
+    data[i + 1] = threshold;
+    data[i + 2] = threshold;
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+  return canvas.toDataURL('image/jpeg', 0.9);
+}
+
+/**
+ * Compatibilidade com chamadas diretas por File
+ */
+export async function preprocessTicketImage(file: File): Promise<string> {
+  const prepared = await prepareReceiptImage(file, 0);
+  return preprocessDataUrlForOcr(prepared);
 }
 
 /**

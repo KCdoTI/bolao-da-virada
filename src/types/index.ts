@@ -47,6 +47,46 @@ export interface Participante {
   data_registro?: string;
   token_acesso?: string;
   pago_em?: string;
+  is_organizador?: boolean;
+}
+
+export interface OpcaoConcursoCaixa {
+  numero: number;
+  dataSorteioIso: string;
+  dataSorteioBr: string;
+  prazoSugeridoIso: string;
+  valorEstimado?: number;
+  tipo: 'proximo_oficial' | 'calendario_previsto' | 'especial_oficial';
+  modalidadeSugerida?: string;
+  rotulo: string;
+}
+
+export interface LotteryLiveInfo {
+  modalidade: string;
+  modalidadeBase: string;
+  consultadoEm: string;
+  fonteTipo: 'caixa_oficial' | 'contingencia_espelho';
+  fonteUrl: string;
+  ultimoConcurso: {
+    numero: number;
+    dataApuracao: string;
+    dezenas: number[];
+    dezenasSegundoSorteio?: number[];
+    acumulado: boolean;
+    localSorteio?: string;
+  };
+  proximoConcurso: {
+    numero: number;
+    dataProximoConcurso: string;
+    dataSorteioIso: string;
+    prazoSugeridoIso: string;
+    valorEstimado: number;
+  };
+  acumuladoEspecial?: {
+    valorAcumulado: number;
+    numeroConcursoEspecial?: number;
+  };
+  opcoesConcursos: OpcaoConcursoCaixa[];
 }
 
 export interface ResultadoConcurso {

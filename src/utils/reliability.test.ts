@@ -3,9 +3,14 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { sqliteStore } from "../../server/store";
-import { createPool, readPool, updatePool } from "../../server/poolService";
-import { fetchOfficialDraw, parseOfficialDraw } from "../../server/caixa";
+import { sqliteStore } from "../../server/store.js";
+import { createPool, readPool, updatePool } from "../../server/poolService.js";
+import { fetchOfficialDraw, parseOfficialDraw } from "../../server/caixa.js";
+import {
+  clearLotteryInfoCache,
+  fetchLotteryLiveInfo,
+  parseCaixaPortalSummary,
+} from "../../server/lotteryInfo.js";
 import { conferirJogo, calcularRateio } from "./lotteryEngine";
 import { parseCaixaTicketText } from "./lotteryOcrParser";
 import { calculateSha256, generateCanonicalManifest } from "./transparency";
@@ -311,4 +316,142 @@ test("manifesto inclui regras e conteúdo de comprovantes, SHA-256 é conhecido"
     await calculateSha256("abc"),
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
   );
+});
+
+test("Lote A: criação com organizador cotista, edição de participante e migração de concurso vencido", async () => {
+  const db = await sqliteStore(":memory:");
+  try {
+    const initial = state();
+    initial.bolao.nome_organizador = "Kelvin";
+    initial.participantes = [
+      {
+        id: "org-init",
+        bolao_id: "new",
+        nome: "Kelvin",
+        telefone: "11988887777",
+        qtd_cotas: 2,
+        status_pagamento: "Pago",
+        is_organizador: true,
+      },
+    ];
+    const created = await createPool(db, initial);
+    assert.equal(created.participantes.length, 1);
+    assert.equal(created.participantes[0].is_organizador, true);
+    assert.equal(created.participantes[0].qtd_cotas, 2);
+    assert.ok(created.participantes[0].pago_em);
+    assert.equal(created.participantes[0].bolao_id, created.bolao.id);
+    const originalToken = created.participantes[0].token_acesso;
+
+    // Edição de participante (nome, cotas, WhatsApp) preservando token_acesso
+    const edited = await updatePool(
+      db,
+      created.adminToken,
+      {
+        bolao: created.bolao,
+        participantes: [
+          {
+            ...created.participantes[0],
+            nome: "Kelvin Castro",
+            telefone: "11977776666",
+            qtd_cotas: 3,
+          },
+        ],
+        jogos: [],
+      },
+      1,
+      "participante_editado",
+    );
+    assert.equal(edited.participantes[0].nome, "Kelvin Castro");
+    assert.equal(edited.participantes[0].qtd_cotas, 3);
+    assert.equal(edited.participantes[0].token_acesso, originalToken);
+
+    // Fechar bolão e depois migrar para o próximo concurso (concurso vencido sem apuração)
+    const closed = await updatePool(
+      db,
+      created.adminToken,
+      { ...edited, bolao: { ...edited.bolao, status: "encerrado" } },
+      2,
+      "fechado",
+    );
+    assert.ok(closed.bolao.fechado_em);
+
+    const newDeadline = new Date(Date.now() + 86400000 * 5).toISOString();
+    const newDraw = new Date(Date.now() + 86400000 * 5 + 10800000).toISOString();
+    const rescheduled = await updatePool(
+      db,
+      created.adminToken,
+      {
+        ...closed,
+        bolao: {
+          ...closed.bolao,
+          concurso_numero: 2,
+          data_limite: newDeadline,
+          data_sorteio: newDraw,
+          status: "aberto",
+        },
+      },
+      3,
+      "adiar_concurso",
+    );
+    assert.equal(rescheduled.bolao.concurso_numero, 2);
+    assert.equal(rescheduled.bolao.status, "aberto");
+    assert.equal(rescheduled.bolao.fechado_em, undefined);
+    assert.ok(
+      rescheduled.history.some((h) => h.action === "concurso_atualizado_1_para_2"),
+    );
+  } finally {
+    db.close?.();
+  }
+});
+
+test("Lote A: portal da Caixa gera opções de concursos futuros, Virada e fallback espelho", async () => {
+  clearLotteryInfoCache();
+  const parsed = parseCaixaPortalSummary(
+    {
+      numero: 3090,
+      dataApuracao: "24/11/2026",
+      listaDezenas: ["04", "12", "23", "38", "49", "58"],
+      acumulado: true,
+      numeroConcursoProximo: 3091,
+      dataProximoConcurso: "26/11/2026",
+      valorEstimadoProximoConcurso: 75000000,
+      valorAcumuladoConcursoEspecial: 140000000,
+    },
+    "Mega-Sena",
+    "https://servicebus2.caixa.gov.br/portaldeloterias/api/megasena",
+    "caixa_oficial",
+  );
+  assert.equal(parsed.proximoConcurso.numero, 3091);
+  assert.equal(parsed.proximoConcurso.dataProximoConcurso, "26/11/2026");
+  assert.ok(parsed.opcoesConcursos.some((o) => o.numero === 3091 && o.tipo === "proximo_oficial"));
+  assert.ok(parsed.opcoesConcursos.some((o) => o.numero === 3092 && o.tipo === "calendario_previsto"));
+  assert.ok(parsed.opcoesConcursos.some((o) => o.numero === 3100 && o.tipo === "especial_oficial"));
+
+  // Simula bloqueio no endpoint primário e sucesso no espelho
+  let calls = 0;
+  const fallbackInfo = await fetchLotteryLiveInfo(
+    "Quina",
+    async (url) => {
+      calls++;
+      if (String(url).includes("servicebus2.caixa.gov.br")) {
+        throw new Error("blocked");
+      }
+      return new Response(
+        JSON.stringify({
+          concurso: 6590,
+          data: "25/11/2026",
+          dezenas: ["02", "15", "33", "61", "78"],
+          acumulou: true,
+          proximoConcurso: 6591,
+          dataProximoConcurso: "26/11/2026",
+          valorEstimadoProximoConcurso: 12000000,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    },
+    true,
+  );
+  assert.equal(calls, 2);
+  assert.equal(fallbackInfo.fonteTipo, "contingencia_espelho");
+  assert.equal(fallbackInfo.proximoConcurso.numero, 6591);
 });
