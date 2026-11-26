@@ -269,6 +269,16 @@ export default function App() {
     return ok;
   };
 
+  const addParticipantsBatch = async (lista: Omit<Participante, "id">[]) => {
+    const novos = lista.map((p) => ({ ...p, id: crypto.randomUUID() }));
+    const ok = await save({
+      ...state,
+      participantes: [...participantes, ...novos],
+    });
+    if (ok) setModal(null);
+    return ok;
+  };
+
   const editParticipant = async (updated: Participante) => {
     const ok = await save(
       {
@@ -771,6 +781,31 @@ export default function App() {
                 "resultado_manual",
               )
             }
+            onImportExtra={(targetModalidade, targetConcurso) =>
+              pool.save(state, "importar_caixa_extra", false, {
+                targetModalidade,
+                targetConcurso,
+              })
+            }
+            onSaveExtra={(rExtra) => {
+              const prevExtras = (bolao.resultados_extras || []).filter(
+                (x) =>
+                  !(
+                    x.modalidade === rExtra.modalidade &&
+                    x.concurso === rExtra.concurso
+                  ),
+              );
+              return save(
+                {
+                  ...state,
+                  bolao: {
+                    ...bolao,
+                    resultados_extras: [...prevExtras, rExtra],
+                  },
+                },
+                "resultado_extra_manual",
+              );
+            }}
           />
         )}
 
@@ -803,6 +838,7 @@ export default function App() {
           initialDezenas={prefill}
           initialTipoJogo={volanteTipoJogo}
           modalidade={bolao.modalidade}
+          concursoBolao={bolao.concurso_numero}
         />
       )}
       {modal === "participante" && (
@@ -813,6 +849,7 @@ export default function App() {
             setModal(null);
           }}
           onAdd={addParticipant}
+          onAddBatch={addParticipantsBatch}
           onEdit={editParticipant}
           participanteEditando={editingParticipant}
           bolaoId={bolao.id}

@@ -44,7 +44,8 @@ export default async function handler(req: any, res: any) {
         );
     if (req.method === "POST")
       return res.status(201).json(await createPool(store, req.body));
-    let { state, revision, action } = req.body || {};
+    let { state, revision, action, targetModalidade, targetConcurso } =
+      req.body || {};
     if (
       ![
         "atualizado",
@@ -52,7 +53,9 @@ export default async function handler(req: any, res: any) {
         "adiar_concurso",
         "fechado",
         "resultado_manual",
+        "resultado_extra_manual",
         "importar_caixa",
+        "importar_caixa_extra",
         "revogar_link",
       ].includes(action)
     )
@@ -68,6 +71,28 @@ export default async function handler(req: any, res: any) {
         participantes: current.participantes,
         jogos: current.jogos,
       };
+    } else if (action === "importar_caixa_extra") {
+      const current = await readPool(store, "", credential);
+      const mod = String(targetModalidade || "").trim();
+      const conc = Number(targetConcurso);
+      if (!mod || !Number.isInteger(conc) || conc < 1) {
+        throw new HttpError(
+          400,
+          "Informe modalidade e concurso do jogo de troco.",
+        );
+      }
+      const result = await fetchOfficialDraw(mod, conc);
+      const prevExtras = (current.bolao.resultados_extras || []).filter(
+        (r: any) => !(r.modalidade === mod && r.concurso === conc),
+      );
+      state = {
+        bolao: {
+          ...current.bolao,
+          resultados_extras: [...prevExtras, result],
+        },
+        participantes: current.participantes,
+        jogos: current.jogos,
+      };
     }
     return res
       .status(200)
@@ -78,7 +103,7 @@ export default async function handler(req: any, res: any) {
           state,
           revision,
           action,
-          action === "importar_caixa",
+          action === "importar_caixa" || action === "importar_caixa_extra",
         ),
       );
   } catch (e) {

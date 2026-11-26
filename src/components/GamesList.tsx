@@ -49,6 +49,7 @@ export const GamesList: React.FC<GamesListProps> = ({
 
   const [filtroDezena, setFiltroDezena] = useState<number | null>(null);
   const info = getModalidadeInfo(modalidade);
+  const [qtdTopPalpite, setQtdTopPalpite] = useState<number>(info.minimoDezenas);
 
   const jogosFiltrados = filtroDezena
     ? jogos.filter((j) => j.dezenas.includes(filtroDezena))
@@ -138,19 +139,47 @@ export const GamesList: React.FC<GamesListProps> = ({
             {!readOnly &&
               onUsarDezenasNoVolante &&
               topDezenasPalpites.length >= info.minimoDezenas && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const escolhidas = topDezenasPalpites
-                      .slice(0, info.minimoDezenas)
-                      .map(([num]) => num)
-                      .sort((a, b) => a - b);
-                    onUsarDezenasNoVolante(escolhidas, 'normal');
-                  }}
-                  className="text-xs font-bold px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
-                >
-                  Montar jogo com as {info.minimoDezenas} mais votadas
-                </button>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <select
+                    aria-label="Quantidade de dezenas mais votadas para montar o jogo"
+                    value={Math.min(qtdTopPalpite, topDezenasPalpites.length)}
+                    onChange={(e) => setQtdTopPalpite(Number(e.target.value))}
+                    className="text-xs font-bold px-2.5 py-1.5 rounded-xl bg-white border border-indigo-300 text-indigo-950"
+                  >
+                    {Array.from(
+                      {
+                        length:
+                          Math.min(info.maximoDezenas, topDezenasPalpites.length) -
+                          info.minimoDezenas +
+                          1,
+                      },
+                      (_, idx) => info.minimoDezenas + idx,
+                    ).map((q) => (
+                      <option key={q} value={q}>
+                        {q} dezenas
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const alvo = Math.min(
+                        qtdTopPalpite,
+                        topDezenasPalpites.length,
+                      );
+                      const escolhidas = topDezenasPalpites
+                        .slice(0, alvo)
+                        .map(([num]) => num)
+                        .sort((a, b) => a - b);
+                      onUsarDezenasNoVolante(escolhidas, 'normal');
+                    }}
+                    className="text-xs font-bold px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
+                  >
+                    Montar jogo com as{' '}
+                    {Math.min(qtdTopPalpite, topDezenasPalpites.length)} mais
+                    votadas
+                  </button>
+                </div>
               )}
           </div>
 
@@ -179,7 +208,11 @@ export const GamesList: React.FC<GamesListProps> = ({
               >
                 <div className="flex items-center justify-between gap-2 text-xs">
                   <strong className="text-slate-800 truncate">
-                    {p.participante_nome}
+                    {p.participante_nome}{' '}
+                    <span className="font-normal text-slate-500">
+                      ({p.dezenas.length}{' '}
+                      {p.dezenas.length === 1 ? 'dezena' : 'dezenas'})
+                    </span>
                   </strong>
                   {!readOnly && onUsarDezenasNoVolante && (
                     <button
@@ -299,7 +332,13 @@ export const GamesList: React.FC<GamesListProps> = ({
                       {isTroco ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
                           <Coins size={10} />
-                          Troco · Divisão Igual
+                          Troco
+                          {jogo.modalidade_especifica
+                            ? ` · ${jogo.modalidade_especifica}${jogo.concurso_especifico ? ` #${jogo.concurso_especifico}` : ''}`
+                            : jogo.concurso_especifico
+                              ? ` · #${jogo.concurso_especifico}`
+                              : ''}{' '}
+                          · Divisão Igual
                         </span>
                       ) : (
                         <span className="text-[11px] text-slate-400 font-medium">

@@ -94,8 +94,12 @@ export async function fetchOfficialDraw(
   const url = `https://servicebus2.caixa.gov.br/portaldeloterias/api/${endpoint}/${concurso}`;
   try {
     const res = await transport(url, {
-      signal: AbortSignal.timeout(12000),
-      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(9000),
+      headers: {
+        Accept: "application/json",
+        "Accept-Language": "pt-BR,pt;q=0.9",
+        "User-Agent": "Mozilla/5.0 (compatible; BolaoDaMega/1.0)",
+      },
     });
     if (!res.ok)
       throw new HttpError(
@@ -103,11 +107,32 @@ export async function fetchOfficialDraw(
         "Consulta à Caixa indisponível ou concurso ainda sem resultado.",
       );
     return parseOfficialDraw(await res.json(), modalidade, concurso, url);
-  } catch (e) {
-    if (e instanceof HttpError) throw e;
-    throw new HttpError(
-      502,
-      "Não foi possível consultar a Caixa. O resultado anterior foi preservado; tente novamente.",
-    );
+  } catch (primaryErr) {
+    // Caso o IP serverless (ex.: Vercel iad1) seja filtrado pela Caixa, tenta espelho público validando o esquema completo
+    const mirrorUrl = `https://loteriascaixa-api.herokuapp.com/api/${endpoint}/${concurso}`;
+    try {
+      const mirrorRes = await transport(mirrorUrl, {
+        signal: AbortSignal.timeout(9000),
+        headers: { Accept: "application/json" },
+      });
+      if (!mirrorRes.ok) throw primaryErr;
+      const m = await mirrorRes.json();
+      const normalized = {
+        numero: m?.numero ?? m?.concurso,
+        dataApuracao: m?.dataApuracao ?? m?.data,
+        listaDezenas: m?.listaDezenas ?? m?.dezenas,
+        listaDezenasSegundoSorteio:
+          m?.listaDezenasSegundoSorteio ?? m?.dezenasSegundoSorteio,
+        listaRateioPremio: m?.listaRateioPremio ?? m?.premiacoes,
+      };
+      return parseOfficialDraw(normalized, modalidade, concurso, mirrorUrl);
+    } catch (fallbackErr) {
+      if (primaryErr instanceof HttpError) throw primaryErr;
+      if (fallbackErr instanceof HttpError) throw fallbackErr;
+      throw new HttpError(
+        502,
+        "Não foi possível consultar a Caixa. O resultado anterior foi preservado; tente novamente.",
+      );
+    }
   }
 }

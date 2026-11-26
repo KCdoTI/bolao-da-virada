@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { X, Check, Sparkles, Camera, AlertCircle, Trash2, Coins } from 'lucide-react';
 import { Jogo, TipoJogoBolao } from '../types';
 import { TicketOcrModal } from './TicketOcrModal';
-import { getModalidadeInfo } from '../constants/lotteryCatalog';
+import { CATALOGO_MODALIDADES, GRUPOS_MODALIDADES, getModalidadeInfo } from '../constants/lotteryCatalog';
+import { useLotteryInfo } from '../hooks/useLotteryInfo';
 
 interface VolanteModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface VolanteModalProps {
   initialDezenas?: number[];
   initialTipoJogo?: TipoJogoBolao;
   modalidade?: string;
+  concursoBolao?: number;
 }
 
 export const VolanteModal: React.FC<VolanteModalProps> = ({
@@ -24,18 +26,29 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
   initialDezenas,
   initialTipoJogo = 'normal',
   modalidade = 'Mega-Sena',
+  concursoBolao = 1,
 }) => {
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
   const [fotoUrl, setFotoUrl] = useState<string>('');
   const [codigoBilhete, setCodigoBilhete] = useState<string>('');
   const [tipoJogo, setTipoJogo] = useState<TipoJogoBolao>(initialTipoJogo);
+  const [modalidadeTroco, setModalidadeTroco] = useState<string>(modalidade);
+  const [concursoTroco, setConcursoTroco] = useState<number>(concursoBolao);
   const [observacao, setObservacao] = useState<string>('');
   const [isOcrOpen, setIsOcrOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   useModalFocus(isOpen, onClose);
 
-  const infoMod = getModalidadeInfo(modalidade);
+  const effectiveModalidade = tipoJogo === 'troco' ? modalidadeTroco : modalidade;
+  const effectiveConcurso = tipoJogo === 'troco' ? concursoTroco : concursoBolao;
+
+  const { lotteryInfo: trocoLotteryInfo } = useLotteryInfo(
+    effectiveModalidade,
+    isOpen && tipoJogo === 'troco',
+  );
+
+  const infoMod = getModalidadeInfo(effectiveModalidade);
   const minDezenas = infoMod.minimoDezenas;
   const maxDezenas = infoMod.maximoDezenas;
   const universo = infoMod.universoNumeros;
@@ -43,11 +56,23 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setTipoJogo(initialTipoJogo);
+      setModalidadeTroco(modalidade);
+      setConcursoTroco(concursoBolao);
       if (initialDezenas && initialDezenas.length > 0) {
         setSelectedNumbers(initialDezenas);
       }
     }
-  }, [initialDezenas, initialTipoJogo, isOpen]);
+  }, [initialDezenas, initialTipoJogo, isOpen, modalidade, concursoBolao]);
+
+  useEffect(() => {
+    if (
+      tipoJogo === 'troco' &&
+      modalidadeTroco !== modalidade &&
+      trocoLotteryInfo?.proximoConcurso?.numero
+    ) {
+      setConcursoTroco(trocoLotteryInfo.proximoConcurso.numero);
+    }
+  }, [tipoJogo, modalidadeTroco, modalidade, trocoLotteryInfo]);
 
   if (!isOpen) return null;
 
@@ -78,13 +103,22 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
   const handleSave = async () => {
     if (saving) return;
     try {
-      validarDezenas(selectedNumbers, modalidade);
+      validarDezenas(selectedNumbers, effectiveModalidade);
     } catch (e) {
       setSaveError((e as Error).message);
       return;
     }
     setSaving(true);
     setSaveError('');
+    const customMod =
+      tipoJogo === 'troco' && effectiveModalidade !== modalidade
+        ? effectiveModalidade
+        : undefined;
+    const customConc =
+      tipoJogo === 'troco' &&
+      (customMod || effectiveConcurso !== concursoBolao)
+        ? effectiveConcurso
+        : undefined;
     const saved = await onSaveJogo({
       bolao_id: bolaoId,
       dezenas: selectedNumbers,
@@ -92,6 +126,8 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
       codigo_bilhete: codigoBilhete.trim() || undefined,
       tipo_jogo: tipoJogo,
       observacao: observacao.trim() || undefined,
+      modalidade_especifica: customMod,
+      concurso_especifico: customConc,
     });
     setSaving(false);
     if (!saved) {
@@ -222,24 +258,97 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
 
           {/* Grid dos Números + Opção de Troco */}
           <div className="p-4 overflow-y-auto max-h-[420px] space-y-4">
-            {/* Chaveador Normal vs Troco */}
-            <label className="flex items-start gap-3 p-3 rounded-xl border border-amber-200 bg-amber-50/70 dark:bg-amber-950/20 dark:border-amber-800/60 cursor-pointer text-xs">
-              <input
-                type="checkbox"
-                checked={tipoJogo === 'troco'}
-                onChange={(e) => setTipoJogo(e.target.checked ? 'troco' : 'normal')}
-                className="mt-0.5 w-4 h-4 shrink-0"
-              />
-              <div>
-                <span className="font-bold text-amber-950 dark:text-amber-200 flex items-center gap-1.5">
-                  <Coins size={14} className="text-amber-600" />
-                  Registrar como Jogo de Troco (sem cotas)
-                </span>
-                <span className="text-amber-900/80 dark:text-amber-300/80 block mt-0.5">
-                  Aposta extra feita com a sobra do caixa. Fica visível para conferência e eventual prêmio é dividido <strong>igualmente</strong> entre todos os participantes pagos.
-                </span>
-              </div>
-            </label>
+            {/* Chaveador Normal vs Troco + Modalidade do Troco */}
+            <div className="p-3 rounded-xl border border-amber-200 bg-amber-50/70 dark:bg-amber-950/20 dark:border-amber-800/60 space-y-3 text-xs">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={tipoJogo === 'troco'}
+                  onChange={(e) => {
+                    const nextTipo = e.target.checked ? 'troco' : 'normal';
+                    setTipoJogo(nextTipo);
+                    if (nextTipo === 'normal' && modalidadeTroco !== modalidade) {
+                      setSelectedNumbers([]);
+                    }
+                  }}
+                  className="mt-0.5 w-4 h-4 shrink-0"
+                />
+                <div>
+                  <span className="font-bold text-amber-950 dark:text-amber-200 flex items-center gap-1.5">
+                    <Coins size={14} className="text-amber-600" />
+                    Registrar como Jogo de Troco (sem cotas)
+                  </span>
+                  <span className="text-amber-900/80 dark:text-amber-300/80 block mt-0.5">
+                    Aposta extra feita com a sobra do caixa (na mesma loteria ou em outra categoria, como Quina ou Lotofácil). O prêmio é dividido <strong>igualmente</strong> entre todos os participantes pagos.
+                  </span>
+                </div>
+              </label>
+
+              {tipoJogo === 'troco' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-amber-200/80">
+                  <label className="font-semibold text-amber-950">
+                    Categoria / Loteria do troco:
+                    <select
+                      value={modalidadeTroco}
+                      onChange={(e) => {
+                        const nova = e.target.value;
+                        setModalidadeTroco(nova);
+                        setSelectedNumbers([]);
+                        if (nova === modalidade) {
+                          setConcursoTroco(concursoBolao);
+                        }
+                      }}
+                      className="block w-full mt-1 px-2.5 py-2 rounded-lg border border-amber-300 bg-white text-slate-900 text-xs"
+                    >
+                      {GRUPOS_MODALIDADES.map((g) => (
+                        <optgroup key={g.grupo} label={g.grupo}>
+                          {g.itens.map((id) => (
+                            <option key={id} value={id}>
+                              {CATALOGO_MODALIDADES[id]?.icone} {id}
+                              {id === modalidade ? ' (mesma do bolão)' : ''}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="font-semibold text-amber-950">
+                    Concurso desta aposta:
+                    {trocoLotteryInfo?.opcoesConcursos?.length ? (
+                      <select
+                        value={String(concursoTroco)}
+                        onChange={(e) => setConcursoTroco(Number(e.target.value))}
+                        className="block w-full mt-1 px-2.5 py-2 rounded-lg border border-amber-300 bg-white text-slate-900 text-xs"
+                      >
+                        {!trocoLotteryInfo.opcoesConcursos.some(
+                          (o) => o.numero === concursoTroco,
+                        ) && (
+                          <option value={String(concursoTroco)}>
+                            Concurso #{concursoTroco}
+                          </option>
+                        )}
+                        {trocoLotteryInfo.opcoesConcursos.map((op) => (
+                          <option key={op.numero} value={String(op.numero)}>
+                            {op.rotulo}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="number"
+                        min="1"
+                        value={concursoTroco}
+                        onChange={(e) =>
+                          setConcursoTroco(Math.max(1, Number(e.target.value) || 1))
+                        }
+                        className="block w-full mt-1 px-2.5 py-2 rounded-lg border border-amber-300 bg-white text-slate-900 text-xs font-mono"
+                      />
+                    )}
+                  </label>
+                </div>
+              )}
+            </div>
 
             <div
               className={`grid gap-1.5 sm:gap-2 ${
@@ -362,7 +471,7 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
 
       {/* Modal de OCR */}
       <TicketOcrModal
-        modalidade={modalidade}
+        modalidade={effectiveModalidade}
         isOpen={isOcrOpen}
         onClose={() => setIsOcrOpen(false)}
         onDezenasConfirmadas={handleOcrResult}

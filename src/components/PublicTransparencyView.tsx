@@ -79,12 +79,31 @@ export function PublicTransparencyView({
   const [copiedPixKey, setCopiedPixKey] = useState(false);
   const [actionFeedback, setActionFeedback] = useState("");
 
-  // Estados de Palpites
+  // Estados de Palpites (100% opcionais e com quantidade flexível de dezenas)
   const [palpiteNums, setPalpiteNums] = useState<number[]>([]);
+  const [qtdSurpresinha, setQtdSurpresinha] = useState<number>(info.minimoDezenas);
+  const [palpiteAberto, setPalpiteAberto] = useState(false);
+  const [dispensouPalpite, setDispensouPalpite] = useState(false);
   const palpitesLista = data.palpites || [];
   const meusPalpites = own
     ? palpitesLista.filter((p) => p.is_meu || p.participante_id === own.id)
     : [];
+
+  useEffect(() => {
+    setQtdSurpresinha(info.minimoDezenas);
+  }, [info.minimoDezenas]);
+
+  useEffect(() => {
+    if (!own) return;
+    try {
+      const savedSkip = localStorage.getItem(
+        `bolao_skip_palpite_${bolao.id}_${own.id}`,
+      );
+      setDispensouPalpite(savedSkip === "1");
+    } catch {
+      setDispensouPalpite(false);
+    }
+  }, [bolao.id, own]);
 
   const valorTotalParticipante = own ? own.qtd_cotas * bolao.valor_cota : 0;
 
@@ -143,9 +162,10 @@ export function PublicTransparencyView({
     }
   };
 
-  const gerarPalpiteSurpresinha = () => {
+  const gerarPalpiteSurpresinha = (qtd = qtdSurpresinha) => {
+    const alvo = Math.max(1, Math.min(info.maximoDezenas, qtd));
     const s = new Set<number>();
-    while (s.size < info.minimoDezenas) {
+    while (s.size < alvo) {
       s.add(Math.floor(Math.random() * info.universoNumeros) + 1);
     }
     setPalpiteNums(Array.from(s).sort((a, b) => a - b));
@@ -594,40 +614,126 @@ export function PublicTransparencyView({
           </section>
         )}
 
-        {/* SEÇÃO DE PALPITES DOS PARTICIPANTES (disponível após aceite ou pago) */}
+        {/* SEÇÃO DE PALPITES DOS PARTICIPANTES (100% Opcional, recolhida por padrão e com dezenas livres) */}
         {own && (hasAccepted || isPaid) && (
-          <section className="card space-y-4">
+          <section className="card space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Lightbulb size={18} className="text-indigo-600" />
-                <span>Palpites para os jogos do grupo</span>
-              </h2>
-              <span className="text-xs text-slate-500">
-                Seus palpites enviados: {meusPalpites.length} / 3
-              </span>
+                <h2 className="text-base sm:text-lg font-bold">
+                  Sugestão de palpites para o bolão
+                </h2>
+                <span className="text-[11px] font-bold uppercase px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                  Opcional
+                </span>
+              </div>
+              {meusPalpites.length > 0 && (
+                <span className="text-xs text-indigo-700 font-semibold">
+                  Enviados por você: {meusPalpites.length} / 3
+                </span>
+              )}
             </div>
 
-            {!frozen && meusPalpites.length < 3 && onParticipantAction && (
-              <div className="space-y-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <span className="font-semibold">
-                    Escolha {info.minimoDezenas} dezenas (selecionadas:{" "}
-                    {palpiteNums.length}) para sugerir ao organizador:
-                  </span>
-                  <div className="flex gap-2">
+            {/* Estado recolhido: deixa claro que ninguém é obrigado a palpitar */}
+            {!palpiteAberto && !frozen && meusPalpites.length < 3 && onParticipantAction && (
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <p className="text-slate-600">
+                  {dispensouPalpite && meusPalpites.length === 0
+                    ? "Você optou por não enviar palpite — tudo certo, sua participação segue normalmente sem precisar escolher dezenas."
+                    : "Não é obrigatório dar palpite! Se preferir deixar os jogos por conta do organizador, não precisa marcar nada."}
+                </p>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDispensouPalpite(false);
+                      try {
+                        localStorage.removeItem(
+                          `bolao_skip_palpite_${bolao.id}_${own.id}`,
+                        );
+                      } catch {}
+                      setPalpiteAberto(true);
+                    }}
+                    className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold cursor-pointer"
+                  >
+                    {meusPalpites.length > 0
+                      ? "Enviar outro palpite"
+                      : "Quero sugerir dezenas"}
+                  </button>
+                  {!dispensouPalpite && meusPalpites.length === 0 && (
                     <button
                       type="button"
-                      onClick={gerarPalpiteSurpresinha}
-                      className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white font-semibold inline-flex items-center gap-1 cursor-pointer"
+                      onClick={() => {
+                        setDispensouPalpite(true);
+                        setPalpiteAberto(false);
+                        setPalpiteNums([]);
+                        try {
+                          localStorage.setItem(
+                            `bolao_skip_palpite_${bolao.id}_${own.id}`,
+                            "1",
+                          );
+                        } catch {}
+                      }}
+                      className="px-3 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-semibold cursor-pointer"
+                    >
+                      Prefiro não dar palpite
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Volante de palpite aberto apenas para quem clicou em participar dos palpites */}
+            {palpiteAberto && !frozen && meusPalpites.length < 3 && onParticipantAction && (
+              <div className="space-y-3 p-3.5 rounded-xl bg-slate-50 border border-indigo-200">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div>
+                    <span className="font-bold text-slate-800 block">
+                      Escolha quantas dezenas quiser (de 1 até {info.maximoDezenas} números):
+                    </span>
+                    <span className="text-slate-600">
+                      Selecionadas agora: <strong>{palpiteNums.length}</strong> de{" "}
+                      {info.maximoDezenas} — você pode sugerir seus números favoritos, um
+                      jogo simples ({info.minimoDezenas}) ou jogos maiores (7, 8, 9, 10+
+                      dezenas).
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <label className="inline-flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1">
+                      <span className="text-slate-600">Qtd:</span>
+                      <select
+                        aria-label="Quantidade de dezenas na Surpresinha"
+                        value={qtdSurpresinha}
+                        onChange={(e) => {
+                          const q = Number(e.target.value);
+                          setQtdSurpresinha(q);
+                        }}
+                        className="font-bold text-slate-800 bg-transparent"
+                      >
+                        {Array.from(
+                          { length: info.maximoDezenas },
+                          (_, idx) => idx + 1,
+                        ).map((q) => (
+                          <option key={q} value={q}>
+                            {q} {q === 1 ? "dezena" : "dezenas"}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => gerarPalpiteSurpresinha(qtdSurpresinha)}
+                      className="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-semibold inline-flex items-center gap-1 cursor-pointer"
                     >
                       <Sparkles size={12} className="text-amber-500" />
-                      Surpresinha
+                      Surpresinha ({qtdSurpresinha})
                     </button>
                     {palpiteNums.length > 0 && (
                       <button
                         type="button"
                         onClick={() => setPalpiteNums([])}
-                        className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-600 cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-600 cursor-pointer"
                       >
                         Limpar
                       </button>
@@ -665,28 +771,43 @@ export function PublicTransparencyView({
                   )}
                 </div>
 
-                <button
-                  type="button"
-                  disabled={
-                    busy ||
-                    palpiteNums.length < info.minimoDezenas ||
-                    palpiteNums.length > info.maximoDezenas
-                  }
-                  onClick={async () => {
-                    const ok = await onParticipantAction("enviar_palpite", {
-                      dezenas: palpiteNums,
-                    });
-                    if (ok) {
-                      setPalpiteNums([]);
-                      setActionFeedback(
-                        "Palpite enviado! O organizador já consegue visualizar sua sugestão.",
-                      );
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={
+                      busy ||
+                      palpiteNums.length < 1 ||
+                      palpiteNums.length > info.maximoDezenas
                     }
-                  }}
-                  className="btn primary text-xs"
-                >
-                  Enviar meu palpite ({palpiteNums.length} dezenas)
-                </button>
+                    onClick={async () => {
+                      const ok = await onParticipantAction("enviar_palpite", {
+                        dezenas: palpiteNums,
+                      });
+                      if (ok) {
+                        setPalpiteNums([]);
+                        setPalpiteAberto(false);
+                        setActionFeedback(
+                          "Palpite enviado! O organizador já consegue visualizar sua sugestão.",
+                        );
+                      }
+                    }}
+                    className="btn primary text-xs"
+                  >
+                    Enviar meu palpite ({palpiteNums.length}{" "}
+                    {palpiteNums.length === 1 ? "dezena" : "dezenas"})
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPalpiteNums([]);
+                      setPalpiteAberto(false);
+                    }}
+                    className="btn text-xs"
+                  >
+                    Fechar sem enviar
+                  </button>
+                </div>
               </div>
             )}
 
@@ -703,7 +824,11 @@ export function PublicTransparencyView({
                     >
                       <div>
                         <strong className="block text-slate-800">
-                          {p.participante_nome}
+                          {p.participante_nome}{" "}
+                          <span className="font-normal text-slate-500">
+                            ({p.dezenas.length}{" "}
+                            {p.dezenas.length === 1 ? "dezena" : "dezenas"})
+                          </span>
                         </strong>
                         <span className="font-mono text-indigo-700 font-bold">
                           {p.dezenas
@@ -756,7 +881,7 @@ export function PublicTransparencyView({
                 )}
               </p>
 
-              {bolao.resultado && (
+              {(bolao.resultado || (bolao.resultados_extras?.length || 0) > 0) && (
                 <div className="pt-2 border-t border-emerald-200 space-y-1">
                   <p className="text-lg font-bold text-emerald-900">
                     Seu rateio total: {currency(data.rateioPessoal || 0)}
@@ -836,6 +961,9 @@ export function PublicTransparencyView({
                     <div className="flex flex-wrap justify-between gap-2 text-xs">
                       <h3 className="font-bold text-sm text-amber-950">
                         Jogo de Troco #{i + 1}
+                        {j.modalidade_especifica || j.concurso_especifico
+                          ? ` (${j.modalidade_especifica || bolao.modalidade} · Concurso #${j.concurso_especifico || bolao.concurso_numero})`
+                          : ""}
                       </h3>
                       {j.observacao && (
                         <span className="italic text-slate-600">{j.observacao}</span>

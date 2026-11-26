@@ -225,6 +225,14 @@ export function generateCanonicalManifest(
     .map((j) => ({
       id: j.id,
       tipo: j.tipo_jogo || 'normal',
+      modalidade:
+        j.tipo_jogo === 'troco' && j.modalidade_especifica
+          ? j.modalidade_especifica
+          : bolao.modalidade,
+      concurso:
+        j.tipo_jogo === 'troco' && j.concurso_especifico
+          ? j.concurso_especifico
+          : bolao.concurso_numero,
       dezenas: [...j.dezenas].sort((x, y) => x - y),
       codigo: j.codigo_bilhete || '',
       comprovante: j.foto_sha256 || j.foto_url || '',
@@ -243,6 +251,7 @@ export function generateCanonicalManifest(
     regras: bolao.regras || [],
     fechado_em: bolao.fechado_em || null,
     resultado: bolao.resultado || null,
+    resultados_extras: bolao.resultados_extras || [],
     bolao_id: bolao.id,
     concurso: bolao.concurso_numero,
     modalidade: bolao.modalidade,

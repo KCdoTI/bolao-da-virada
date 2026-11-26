@@ -34,6 +34,7 @@ export interface Bolao {
   regras?: string[];
   data_sorteio?: string;
   resultado?: ResultadoConcurso;
+  resultados_extras?: ResultadoConcurso[];
   fechado_em?: string;
   permitir_inscricao_publica?: boolean;
 }
@@ -147,6 +148,8 @@ export interface Jogo {
   codigo_bilhete?: string;
   tipo_jogo?: TipoJogoBolao;
   observacao?: string;
+  modalidade_especifica?: string;
+  concurso_especifico?: number;
 }
 
 export interface DetalheFaixaPremiacao {

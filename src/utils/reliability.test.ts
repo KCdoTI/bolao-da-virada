@@ -19,6 +19,10 @@ import {
 } from "../../server/lotteryInfo.js";
 import { conferirJogo, calcularRateio, calcularRateioUnificado } from "./lotteryEngine.js";
 import { gerarPayloadPixEstatico, gerarQrCodePixSvg } from "./pix.js";
+import {
+  parseVCardContacts,
+  parsePastedContactsList,
+} from "./contacts.js";
 import { parseCaixaTicketText } from "./lotteryOcrParser";
 import { calculateSha256, generateCanonicalManifest } from "./transparency";
 import type { PoolState, Participante } from "../types";
@@ -587,15 +591,25 @@ test("Lote B: etapas do link (aceite -> PIX QR -> já paguei -> transparência p
       slug: created.bolao.hash_slug,
       personalToken: tokenMariana,
       action: "enviar_palpite",
-      payload: { dezenas: [5, 10, 20, 30, 40, 50] },
+      payload: { dezenas: [5, 10, 15, 20, 25, 30, 40, 50, 60] }, // 9 dezenas (não trava em 6!)
     });
     assert.equal(afterPalpite.palpites.length, 1);
+    assert.equal(afterPalpite.palpites[0].dezenas.length, 9);
+
+    // Também aceita sugestão curta de dezenas favoritas (ex.: 2 números da sorte)
+    const afterShortPalpite: any = await executeParticipantAction(db, {
+      slug: created.bolao.hash_slug,
+      personalToken: tokenMariana,
+      action: "enviar_palpite",
+      payload: { dezenas: [7, 13] },
+    });
+    assert.equal(afterShortPalpite.palpites.length, 2);
 
     // n8n consulta fila de eventos não lidos
     const feed1 = await managePoolEvents(db, created.adminToken, {
       onlyUnacked: true,
     });
-    assert.equal(feed1.eventos.length, 3); // regras_aceitas, pagamento_informado, novo_palpite
+    assert.equal(feed1.eventos.length, 4); // regras_aceitas, pagamento_informado, 2x novo_palpite
     assert.equal(feed1.resumo.aguardando_confirmacao_pix, 1);
 
     // n8n confirma leitura até o último seq -> fila não lida zera
@@ -634,6 +648,250 @@ test("Lote B: etapas do link (aceite -> PIX QR -> já paguei -> transparência p
       step3.jogos.filter((j: any) => j.tipo_jogo === "troco").length,
       1,
     );
+  } finally {
+    db.close?.();
+  }
+});
+
+test("Lote C: parser vCard (.vcf com Quoted-Printable UTF-8 e múltiplos contatos) e lista colada", () => {
+  const vcfSample = [
+    "BEGIN:VCARD",
+    "VERSION:2.1",
+    "N;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:Silva;=C3=81lvaro;;;",
+    "FN;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:=C3=81lvaro=20Silva",
+    "TEL;WORK:+551133334444",
+    "TEL;CELL;PREF:+55 11 98765-4321",
+    "END:VCARD",
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    "FN:Beatriz Costa",
+    "TEL;TYPE=IPHONE,CELL,VOICE:21999887766",
+    "END:VCARD",
+  ].join("\r\n");
+
+  const parsedVcf = parseVCardContacts(vcfSample);
+  assert.equal(parsedVcf.length, 2);
+  assert.equal(parsedVcf[0].nome, "Álvaro Silva");
+  assert.equal(parsedVcf[0].telefone, "(11) 98765-4321");
+  assert.equal(parsedVcf[0].cotasSugeridas, 1);
+  assert.equal(parsedVcf[1].nome, "Beatriz Costa");
+  assert.equal(parsedVcf[1].telefone, "(21) 99988-7766");
+
+  const pasted = parsePastedContactsList(
+    "Mariana Souza - 11988887777 - 3 cotas\nCarlos Lima; (31) 97777-6666; 2\nFernanda +55 41 96666-5555",
+  );
+  assert.equal(pasted.length, 3);
+  assert.equal(pasted[0].nome, "Mariana Souza");
+  assert.equal(pasted[0].telefone, "(11) 98888-7777");
+  assert.equal(pasted[0].cotasSugeridas, 3);
+  assert.equal(pasted[1].cotasSugeridas, 2);
+  assert.equal(pasted[2].nome, "Fernanda");
+  assert.equal(pasted[2].telefone, "(41) 96666-5555");
+});
+
+test("Lote C: jogos de troco em outra categoria (Quina dentro da Mega-Sena) validam modalidade própria, apuram resultado extra e dividem prêmio igualmente", async () => {
+  const db = await sqliteStore(":memory:");
+  try {
+    const initial = state();
+    initial.bolao.modalidade = "Mega-Sena";
+    initial.bolao.concurso_numero = 3091;
+    initial.participantes = [
+      {
+        id: "p1",
+        bolao_id: "new",
+        nome: "Kelvin",
+        telefone: "11999990001",
+        qtd_cotas: 3,
+        status_pagamento: "Pago",
+        is_organizador: true,
+      },
+      {
+        id: "p2",
+        bolao_id: "new",
+        nome: "Amigo",
+        telefone: "11999990002",
+        qtd_cotas: 1,
+        status_pagamento: "Pago",
+      },
+    ];
+
+    const created = await createPool(db, initial);
+
+    // Jogo normal não pode usar modalidade diferente da do bolão principal
+    await assert.rejects(
+      updatePool(
+        db,
+        created.adminToken,
+        {
+          bolao: created.bolao,
+          participantes: created.participantes,
+          jogos: [
+            {
+              id: "j-invalido",
+              bolao_id: created.bolao.id,
+              dezenas: [10, 20, 30, 40, 75],
+              criado_em: new Date().toISOString(),
+              tipo_jogo: "normal",
+              modalidade_especifica: "Quina",
+              concurso_especifico: 6591,
+            },
+          ],
+        },
+        1,
+      ),
+      /Apenas jogos marcados como "troco"/,
+    );
+
+    // Jogo normal da Mega (6 dezenas <= 60) + Jogo de troco na Quina (5 dezenas até 80, concurso 6591)
+    const withGames = await updatePool(
+      db,
+      created.adminToken,
+      {
+        bolao: created.bolao,
+        participantes: created.participantes,
+        jogos: [
+          {
+            id: "j-mega",
+            bolao_id: created.bolao.id,
+            dezenas: [1, 2, 3, 4, 5, 6],
+            criado_em: "2026-11-26T10:00:00.000Z",
+            tipo_jogo: "normal",
+          },
+          {
+            id: "j-troco-quina",
+            bolao_id: created.bolao.id,
+            dezenas: [12, 24, 36, 48, 78],
+            criado_em: "2026-11-26T10:05:00.000Z",
+            tipo_jogo: "troco",
+            modalidade_especifica: "Quina",
+            concurso_especifico: 6591,
+            observacao: "Troco de R$ 2,50 na Quina",
+          },
+        ],
+      },
+      1,
+    );
+    assert.equal(withGames.jogos.length, 2);
+
+    // Manifesto canônico SHA-256 diferencia modalidade/concurso do jogo de troco
+    const manifestA = generateCanonicalManifest(
+      withGames.bolao,
+      withGames.participantes,
+      withGames.jogos,
+    );
+    const manifestB = generateCanonicalManifest(
+      withGames.bolao,
+      withGames.participantes,
+      withGames.jogos.map((j) =>
+        j.id === "j-troco-quina" ? { ...j, concurso_especifico: 6592 } : j,
+      ),
+    );
+    assert.notEqual(manifestA, manifestB);
+
+    // Fecha o bolão para apurar
+    const closed = await updatePool(
+      db,
+      created.adminToken,
+      {
+        ...withGames,
+        bolao: {
+          ...withGames.bolao,
+          status: "encerrado",
+          fechado_em: "2026-11-26T19:00:00.000Z",
+        },
+      },
+      2,
+    );
+
+    // Bloqueia tentativa de forjar resultado extra como "caixa_oficial" sem passar pelo servidor
+    const forgedExtra = {
+      modalidade: "Quina",
+      concurso: 6591,
+      dataApuracao: "26/11/2026",
+      origem: "caixa_oficial" as const,
+      consultado_em: "2026-11-26T21:00:00.000Z",
+      sorteios: [
+        {
+          dezenas: [12, 24, 36, 48, 78],
+          premiacao: { quina: 200, quadra: 0, terno: 0, duque: 0 },
+        },
+      ],
+    };
+    await assert.rejects(
+      updatePool(
+        db,
+        created.adminToken,
+        {
+          ...closed,
+          bolao: { ...closed.bolao, resultados_extras: [forgedExtra] },
+        },
+        3,
+      ),
+      /Importe o resultado extra diretamente da Caixa/,
+    );
+
+    // Apura Mega-Sena (R$ 400 -> 3/4 Kelvin = R$ 300, 1/4 Amigo = R$ 100)
+    // e Quina de troco (R$ 200 -> divisão igualitária por pessoa paga = R$ 100 cada)
+    const settled = await updatePool(
+      db,
+      created.adminToken,
+      {
+        ...closed,
+        bolao: {
+          ...closed.bolao,
+          status: "sorteado",
+          resultado: {
+            modalidade: "Mega-Sena",
+            concurso: 3091,
+            dataApuracao: "26/11/2026",
+            origem: "manual",
+            consultado_em: "2026-11-26T21:00:00.000Z",
+            sorteios: [
+              {
+                dezenas: [1, 2, 3, 4, 5, 6],
+                premiacao: { sena: 400, quina: 0, quadra: 0 },
+              },
+            ],
+          },
+          resultados_extras: [
+            {
+              ...forgedExtra,
+              origem: "manual",
+            },
+          ],
+        },
+      },
+      3,
+      "resultado_extra_manual",
+    );
+
+    // Confere leitura pessoal de Kelvin (3 cotas -> R$ 300 cotas + R$ 100 troco = R$ 400)
+    // e do Amigo (1 cota -> R$ 100 cotas + R$ 100 troco = R$ 200)
+    const personalKelvin: any = await readPool(
+      db,
+      settled.bolao.hash_slug,
+      undefined,
+      settled.participantes[0].token_acesso,
+    );
+    const personalAmigo: any = await readPool(
+      db,
+      settled.bolao.hash_slug,
+      undefined,
+      settled.participantes[1].token_acesso,
+    );
+
+    assert.equal(personalKelvin.premioNormais, 400);
+    assert.equal(personalKelvin.premioTroco, 200);
+    assert.equal(personalKelvin.totalPremio, 600);
+    assert.equal(personalKelvin.rateioPessoalCotas, 300);
+    assert.equal(personalKelvin.rateioPessoalTroco, 100);
+    assert.equal(personalKelvin.rateioPessoal, 400);
+
+    assert.equal(personalAmigo.rateioPessoalCotas, 100);
+    assert.equal(personalAmigo.rateioPessoalTroco, 100);
+    assert.equal(personalAmigo.rateioPessoal, 200);
+    assert.equal(personalAmigo.bolao.resultados_extras.length, 1);
+    assert.equal(personalAmigo.bolao.resultados_extras[0].modalidade, "Quina");
   } finally {
     db.close?.();
   }

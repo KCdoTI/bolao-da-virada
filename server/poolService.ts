@@ -11,7 +11,10 @@ import {
   CATALOGO_MODALIDADES,
   getModalidadeInfo,
 } from "../src/constants/lotteryCatalog.js";
-import { validarDezenas } from "../src/utils/validation.js";
+import {
+  validarDezenas,
+  validarPalpiteDezenas,
+} from "../src/utils/validation.js";
 import {
   conferirJogo,
   calcularRateioUnificado,
@@ -46,6 +49,19 @@ const eventoSchema = z.object({
   lido: z.boolean().optional(),
 });
 
+const resultadoConcursoSchema = z.object({
+  modalidade: text.refine((v) => Object.hasOwn(CATALOGO_MODALIDADES, v)),
+  concurso: z.number().int().min(1),
+  origem: z.enum(["manual", "caixa_oficial"]),
+  fonte: z.string().url().optional(),
+  consultado_em: date,
+  dataApuracao: text.min(1),
+  sorteios: z
+    .array(z.object({ dezenas: z.array(z.number()), premiacao: prizes }))
+    .min(1)
+    .max(2),
+});
+
 const schema = z.object({
   bolao: z.object({
     id: text,
@@ -72,20 +88,8 @@ const schema = z.object({
     regras: z.array(z.string().max(1000)).max(30).optional(),
     fechado_em: date.optional(),
     permitir_inscricao_publica: z.boolean().optional(),
-    resultado: z
-      .object({
-        modalidade: text,
-        concurso: z.number().int(),
-        origem: z.enum(["manual", "caixa_oficial"]),
-        fonte: z.string().url().optional(),
-        consultado_em: date,
-        dataApuracao: text.min(1),
-        sorteios: z
-          .array(z.object({ dezenas: z.array(z.number()), premiacao: prizes }))
-          .min(1)
-          .max(2),
-      })
-      .optional(),
+    resultado: resultadoConcursoSchema.optional(),
+    resultados_extras: z.array(resultadoConcursoSchema).max(20).optional(),
   }),
   participantes: z
     .array(
@@ -124,6 +128,11 @@ const schema = z.object({
         codigo_bilhete: text.optional(),
         tipo_jogo: z.enum(["normal", "troco"]).optional(),
         observacao: z.string().max(240).optional(),
+        modalidade_especifica: z
+          .string()
+          .refine((v) => Object.hasOwn(CATALOGO_MODALIDADES, v))
+          .optional(),
+        concurso_especifico: z.number().int().min(1).optional(),
       }),
     )
     .max(200),
@@ -167,6 +176,38 @@ function appendEvent(
   return updated.slice(-200);
 }
 
+export function resolveGameTarget(
+  j: PoolState["jogos"][number],
+  bolao: Bolao,
+): { modalidade: string; concurso: number } {
+  if (j.tipo_jogo === "troco") {
+    return {
+      modalidade: j.modalidade_especifica || bolao.modalidade,
+      concurso: j.concurso_especifico || bolao.concurso_numero,
+    };
+  }
+  return {
+    modalidade: bolao.modalidade,
+    concurso: bolao.concurso_numero,
+  };
+}
+
+export function findResultForGame(
+  j: PoolState["jogos"][number],
+  bolao: Bolao,
+) {
+  const target = resolveGameTarget(j, bolao);
+  if (
+    target.modalidade === bolao.modalidade &&
+    target.concurso === bolao.concurso_numero
+  ) {
+    return bolao.resultado;
+  }
+  return (bolao.resultados_extras || []).find(
+    (r) => r.modalidade === target.modalidade && r.concurso === target.concurso,
+  );
+}
+
 export function validateState(raw: unknown): PoolState {
   const parsed = schema.safeParse(raw);
   if (!parsed.success)
@@ -175,9 +216,25 @@ export function validateState(raw: unknown): PoolState {
       `Dados inválidos: ${parsed.error.issues[0].path.join(".")}.`,
     );
   const s = parsed.data as PoolState;
-  for (const j of s.jogos) validarDezenas(j.dezenas, s.bolao.modalidade);
+  for (const j of s.jogos) {
+    if (
+      j.tipo_jogo !== "troco" &&
+      ((j.modalidade_especifica &&
+        j.modalidade_especifica !== s.bolao.modalidade) ||
+        (j.concurso_especifico &&
+          j.concurso_especifico !== s.bolao.concurso_numero))
+    ) {
+      throw new HttpError(
+        400,
+        'Apenas jogos marcados como "troco" podem usar outra modalidade ou concurso.',
+      );
+    }
+    const target = resolveGameTarget(j, s.bolao);
+    validarDezenas(j.dezenas, target.modalidade);
+  }
   if (s.palpites) {
-    for (const p of s.palpites) validarDezenas(p.dezenas, s.bolao.modalidade);
+    for (const p of s.palpites)
+      validarPalpiteDezenas(p.dezenas, s.bolao.modalidade);
   }
   for (const list of [s.jogos, s.participantes]) {
     if (
@@ -203,6 +260,24 @@ export function validateState(raw: unknown): PoolState {
     for (const draw of r.sorteios)
       validarDezenas(draw.dezenas, r.modalidade, true);
   }
+  if (s.bolao.resultados_extras) {
+    const seen = new Set<string>();
+    for (const re of s.bolao.resultados_extras) {
+      const key = `${re.modalidade}::${re.concurso}`;
+      if (seen.has(key))
+        throw new HttpError(400, "Resultado extra duplicado para o mesmo concurso.");
+      seen.add(key);
+      if (
+        re.sorteios.length !==
+        (getModalidadeInfo(re.modalidade).modalidadeBase === "Dupla Sena"
+          ? 2
+          : 1)
+      )
+        throw new HttpError(400, "Quantidade de sorteios inválida no resultado extra.");
+      for (const draw of re.sorteios)
+        validarDezenas(draw.dezenas, re.modalidade, true);
+    }
+  }
   if (
     s.bolao.data_sorteio &&
     new Date(s.bolao.data_limite) >= new Date(s.bolao.data_sorteio)
@@ -212,16 +287,15 @@ export function validateState(raw: unknown): PoolState {
 }
 
 export function calculatePoolPrizes(s: PoolState) {
-  if (!s.bolao.resultado) {
-    return { premioNormais: 0, premioTroco: 0, totalPremio: 0 };
-  }
   let premioNormais = 0;
   let premioTroco = 0;
   for (const j of s.jogos) {
-    const ganhoJogo = s.bolao.resultado.sorteios.reduce(
+    const res = findResultForGame(j, s.bolao);
+    if (!res) continue;
+    const ganhoJogo = res.sorteios.reduce(
       (n, draw) =>
         n +
-        conferirJogo(j, draw.dezenas, draw.premiacao, s.bolao.modalidade)
+        conferirJogo(j, draw.dezenas, draw.premiacao, res.modalidade)
           .premiacaoCalculada.valorTotal,
       0,
     );
@@ -258,7 +332,8 @@ export function publicProjection(s: PoolState, personalToken?: string) {
   const transparenciaLiberada = isPaid;
   const pixLiberado = Boolean(own && (hasAccepted || isPaid));
 
-  const { chave_pix_organizador, resultado, ...bolaoPublico } = s.bolao;
+  const { chave_pix_organizador, resultado, resultados_extras, ...bolaoPublico } =
+    s.bolao;
   const { premioNormais, premioTroco, totalPremio } = calculatePoolPrizes(s);
 
   const meuRateio =
@@ -285,19 +360,34 @@ export function publicProjection(s: PoolState, personalToken?: string) {
     bolao: {
       ...bolaoPublico,
       resultado: transparenciaLiberada ? resultado : undefined,
+      resultados_extras: transparenciaLiberada ? resultados_extras : undefined,
       chave_pix_organizador: pixLiberado ? chave_pix_organizador : "",
     },
     jogos: transparenciaLiberada
-      ? s.jogos.map(({ id, dezenas, criado_em, tipo_jogo, observacao, foto_sha256, codigo_bilhete }) => ({
-          id,
-          bolao_id: bolaoPublico.id,
-          dezenas,
-          criado_em,
-          tipo_jogo: tipo_jogo || "normal",
-          observacao,
-          foto_sha256,
-          codigo_bilhete,
-        }))
+      ? s.jogos.map(
+          ({
+            id,
+            dezenas,
+            criado_em,
+            tipo_jogo,
+            observacao,
+            foto_sha256,
+            codigo_bilhete,
+            modalidade_especifica,
+            concurso_especifico,
+          }) => ({
+            id,
+            bolao_id: bolaoPublico.id,
+            dezenas,
+            criado_em,
+            tipo_jogo: tipo_jogo || "normal",
+            observacao,
+            foto_sha256,
+            codigo_bilhete,
+            modalidade_especifica,
+            concurso_especifico,
+          }),
+        )
       : [],
     palpites:
       own && (hasAccepted || isPaid)
@@ -429,6 +519,22 @@ export async function updatePool(
     next.bolao.resultado?.origem === "caixa_oficial"
   )
     throw new HttpError(400, "Importe o resultado diretamente da Caixa.");
+  if (!trustedResult && next.bolao.resultados_extras) {
+    const oldExtras = old.bolao.resultados_extras || [];
+    for (const re of next.bolao.resultados_extras) {
+      if (re.origem === "caixa_oficial") {
+        const prevMatch = oldExtras.find(
+          (o) => o.modalidade === re.modalidade && o.concurso === re.concurso,
+        );
+        if (!prevMatch || JSON.stringify(prevMatch) !== JSON.stringify(re)) {
+          throw new HttpError(
+            400,
+            "Importe o resultado extra diretamente da Caixa.",
+          );
+        }
+      }
+    }
+  }
   const financial = (s: PoolState) =>
     JSON.stringify({
       participantes: s.participantes.map((p) => ({
@@ -473,7 +579,11 @@ export async function updatePool(
     );
   if (!isReschedule && old.bolao.fechado_em && next.bolao.status === "aberto")
     throw new HttpError(409, "Um bolão fechado não pode ser reaberto.");
-  if (next.bolao.resultado && !old.bolao.fechado_em && !expired)
+  if (
+    (next.bolao.resultado || (next.bolao.resultados_extras?.length || 0) > 0) &&
+    !old.bolao.fechado_em &&
+    !expired
+  )
     throw new HttpError(409, "Feche as participações antes de apurar.");
 
   for (const game of next.jogos) {
@@ -725,7 +835,7 @@ export async function executeParticipantAction(
         throw new HttpError(400, "Aceite as regras do bolão antes de enviar palpites.");
 
       const dezenasRaw = params.payload?.dezenas;
-      validarDezenas(dezenasRaw, bolao.modalidade);
+      validarPalpiteDezenas(dezenasRaw, bolao.modalidade);
       const dezenasOrdenadas = [...dezenasRaw].sort((a, b) => a - b);
 
       const palpites = state.palpites || [];

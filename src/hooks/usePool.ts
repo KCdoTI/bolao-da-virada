@@ -122,7 +122,12 @@ export function usePool() {
     return () => clearInterval(timer);
   }, [location, reload]);
 
-  async function save(state: PoolState, action = "atualizado", create = false) {
+  async function save(
+    state: PoolState,
+    action = "atualizado",
+    create = false,
+    extraBody?: Record<string, unknown>,
+  ) {
     if (lock.current) return false;
     lock.current = true;
     setBusy(true);
@@ -137,7 +142,9 @@ export function usePool() {
             : {}),
         },
         body: JSON.stringify(
-          create ? state : { state, revision: data?.revision, action },
+          create
+            ? state
+            : { state, revision: data?.revision, action, ...(extraBody || {}) },
         ),
       });
       setData(next);
