@@ -152,7 +152,33 @@ export function conferirJogo(
 }
 
 /**
- * Rateio financeiro proporcional estritamente restrito a cotistas com status "Pago"
+ * Retorna quantas cotas deste participante já estão efetivamente pagas/confirmadas.
+ * Compatível com registros antigos (sem `cotas_pagas`):
+ * - Se `status_pagamento === 'Pago'`, todas as `qtd_cotas` estão pagas;
+ * - Se `status_pagamento === 'Pendente'`, respeita `cotas_pagas` parciais (ex.: pagou 1 e depois pediu +1).
+ */
+export function obterCotasPagas(
+  p: Pick<Participante, 'qtd_cotas' | 'status_pagamento' | 'cotas_pagas'>,
+): number {
+  if (p.status_pagamento === 'Pago') return p.qtd_cotas;
+  const parcial =
+    typeof p.cotas_pagas === 'number' && Number.isFinite(p.cotas_pagas)
+      ? Math.floor(p.cotas_pagas)
+      : 0;
+  return Math.max(0, Math.min(p.qtd_cotas, parcial));
+}
+
+/**
+ * Retorna apenas a quantidade de cotas ainda pendentes de pagamento (diferença a cobrar).
+ */
+export function obterCotasPendentes(
+  p: Pick<Participante, 'qtd_cotas' | 'status_pagamento' | 'cotas_pagas'>,
+): number {
+  return Math.max(0, p.qtd_cotas - obterCotasPagas(p));
+}
+
+/**
+ * Rateio financeiro proporcional estritamente restrito às cotas efetivamente pagas
  */
 export function calcularRateio(
   participantes: Participante[],
@@ -160,11 +186,12 @@ export function calcularRateio(
 ): RateioCotista[] {
   if (!Number.isFinite(valorPremioTotal) || valorPremioTotal < 0 || !Number.isSafeInteger(Math.round(valorPremioTotal * 100))) throw new Error('Total inválido.');
   if (participantes.some(p => !Number.isSafeInteger(p.qtd_cotas) || p.qtd_cotas < 1 || p.qtd_cotas > 1000000) || new Set(participantes.map(p => p.id)).size !== participantes.length) throw new Error('Cotas ou participantes inválidos.');
-  const cotistasPagos = participantes.filter((p) => p.status_pagamento === 'Pago');
-  const totalCotasPagas = cotistasPagos.reduce((acc, p) => acc + p.qtd_cotas, 0);
+  const cotistasPagos = participantes.filter((p) => obterCotasPagas(p) > 0);
+  const totalCotasPagas = cotistasPagos.reduce((acc, p) => acc + obterCotasPagas(p), 0);
   const centavos = BigInt(Math.round(valorPremioTotal * 100));
   const parcelas = cotistasPagos.map(p => {
-    const produto = centavos * BigInt(p.qtd_cotas);
+    const pagas = obterCotasPagas(p);
+    const produto = centavos * BigInt(pagas);
     return { id: p.id, valor: produto / BigInt(totalCotasPagas), resto: produto % BigInt(totalCotasPagas) };
   });
   const ordem = [...parcelas].sort((a, b) => a.resto === b.resto ? a.id.localeCompare(b.id, 'en') : a.resto > b.resto ? -1 : 1);
@@ -177,7 +204,8 @@ export function calcularRateio(
       : 0;
 
   return participantes.map((p) => {
-    if (p.status_pagamento !== 'Pago' || totalCotasPagas === 0 || valorPremioTotal === 0) {
+    const pagas = obterCotasPagas(p);
+    if (pagas <= 0 || totalCotasPagas === 0 || valorPremioTotal === 0) {
       return {
         ...p,
         porcentagem: 0,
@@ -186,7 +214,7 @@ export function calcularRateio(
       };
     }
 
-    const porcentagem = (p.qtd_cotas / totalCotasPagas) * 100;
+    const porcentagem = (pagas / totalCotasPagas) * 100;
     const valorAReceber = Number(parcelas.find(v => v.id === p.id)!.valor) / 100;
 
     return {
@@ -203,7 +231,7 @@ export function calcularRateio(
 /**
  * Rateio unificado:
  * - Jogos principais (normais): divididos proporcionalmente às cotas pagas;
- * - Jogos de Troco: divididos IGUALMENTE por pessoa paga (1 parte igual para cada participante confirmado),
+ * - Jogos de Troco: divididos IGUALMENTE por pessoa com ao menos 1 cota paga confirmada,
  *   ambos calculados em centavos inteiros (BigInt) com fechamento exato.
  */
 export function calcularRateioUnificado(
@@ -220,7 +248,7 @@ export function calcularRateioUnificado(
     throw new Error('Total de prêmio do troco inválido.');
   }
 
-  const cotistasPagos = participantes.filter((p) => p.status_pagamento === 'Pago');
+  const cotistasPagos = participantes.filter((p) => obterCotasPagas(p) > 0);
   const qtdPessoasPagas = cotistasPagos.length;
   const centavosTroco = BigInt(Math.round(valorPremioJogosTroco * 100));
 
@@ -238,7 +266,7 @@ export function calcularRateioUnificado(
   const bonusIds = new Set(ordenadosPorId.slice(0, restoPessoas).map((p) => p.id));
 
   return baseProporcional.map((r) => {
-    if (r.status_pagamento !== 'Pago') {
+    if (obterCotasPagas(r) <= 0) {
       return {
         ...r,
         valorCotas: 0,

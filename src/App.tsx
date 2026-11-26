@@ -701,11 +701,17 @@ export default function App() {
                   ...state,
                   participantes: participantes.map((p) =>
                     p.id === id
-                      ? {
-                          ...p,
-                          status_pagamento:
-                            p.status_pagamento === "Pago" ? "Pendente" : "Pago",
-                        }
+                      ? p.status_pagamento === "Pago"
+                        ? {
+                            ...p,
+                            status_pagamento: "Pendente",
+                            cotas_pagas: 0,
+                          }
+                        : {
+                            ...p,
+                            status_pagamento: "Pago",
+                            cotas_pagas: p.qtd_cotas,
+                          }
                       : p,
                   ),
                 })

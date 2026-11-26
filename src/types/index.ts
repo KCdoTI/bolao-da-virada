@@ -45,6 +45,7 @@ export interface Participante {
   nome: string;
   telefone: string;
   qtd_cotas: number;
+  cotas_pagas?: number;
   status_pagamento: StatusPagamento;
   data_registro?: string;
   token_acesso?: string;

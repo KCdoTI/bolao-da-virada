@@ -4,6 +4,7 @@ import {
   generateCanonicalManifest,
   calculateSha256,
 } from "../utils/transparency";
+import { obterCotasPagas, obterCotasPendentes } from "../utils/lotteryEngine";
 import { Dialog } from "./Dialog";
 import { ResultadoView, currency } from "./PainelConferencia";
 import { ReceiptImage } from "./ReceiptImage";
@@ -93,7 +94,9 @@ export function PrintReportModal({
                     <td>{p.nome}</td>
                     <td>{p.qtd_cotas}</td>
                     <td>
-                      {p.status_pagamento}
+                      {obterCotasPagas(p) > 0 && obterCotasPendentes(p) > 0
+                        ? `Parcial (${obterCotasPagas(p)}/${p.qtd_cotas} paga)`
+                        : p.status_pagamento}
                       {p.pago_em && (
                         <small className="block">
                           {new Date(p.pago_em).toLocaleString("pt-BR")}

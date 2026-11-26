@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Contact, FileUp, ClipboardPaste, Trash2 } from "lucide-react";
 import type { Participante, StatusPagamento } from "../types";
+import { obterCotasPagas } from "../utils/lotteryEngine";
 import {
   type ContatoImportado,
   isContactPickerSupported,
@@ -33,6 +34,7 @@ export function AddParticipantModal({
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [cotas, setCotas] = useState(1);
+  const [cotasPagas, setCotasPagas] = useState(0);
   const [status, setStatus] = useState<StatusPagamento>("Pendente");
   const [autoRevertedNotice, setAutoRevertedNotice] = useState(false);
 
@@ -59,14 +61,17 @@ export function AddParticipantModal({
     setPasteText("");
 
     if (participanteEditando) {
+      const jaPagas = obterCotasPagas(participanteEditando);
       setNome(participanteEditando.nome);
       setTelefone(participanteEditando.telefone || "");
       setCotas(participanteEditando.qtd_cotas);
-      setStatus(participanteEditando.status_pagamento);
+      setCotasPagas(jaPagas);
+      setStatus(jaPagas >= participanteEditando.qtd_cotas ? "Pago" : "Pendente");
     } else {
       setNome("");
       setTelefone("");
       setCotas(1);
+      setCotasPagas(0);
       setStatus("Pendente");
     }
   }, [isOpen, participanteEditando]);
@@ -124,14 +129,21 @@ export function AddParticipantModal({
   const handleCotasChange = (nextCotas: number) => {
     const valid = Math.max(1, Math.min(1000000, Math.floor(nextCotas) || 1));
     setCotas(valid);
-    if (
-      participanteEditando &&
-      participanteEditando.status_pagamento === "Pago" &&
-      valid > participanteEditando.qtd_cotas
-    ) {
-      setStatus("Pendente");
-      setAutoRevertedNotice(true);
+    if (participanteEditando) {
+      const pagasOriginais = obterCotasPagas(participanteEditando);
+      const novasPagas = Math.min(valid, pagasOriginais);
+      setCotasPagas(novasPagas);
+      if (pagasOriginais > 0 && valid > pagasOriginais) {
+        setStatus("Pendente");
+        setAutoRevertedNotice(true);
+      } else if (novasPagas >= valid && pagasOriginais > 0) {
+        setStatus("Pago");
+        setAutoRevertedNotice(false);
+      } else {
+        setAutoRevertedNotice(false);
+      }
     } else {
+      setCotasPagas(status === "Pago" ? valid : 0);
       setAutoRevertedNotice(false);
     }
   };
@@ -397,13 +409,19 @@ export function AddParticipantModal({
             setError("");
             try {
               let ok: boolean | void;
+              const finalCotasPagas =
+                status === "Pago" ? cotas : Math.max(0, Math.min(cotas, cotasPagas));
+              const finalStatus: StatusPagamento =
+                finalCotasPagas >= cotas ? "Pago" : "Pendente";
+
               if (isEdit && participanteEditando && onEdit) {
                 ok = await onEdit({
                   ...participanteEditando,
                   nome: nome.trim(),
                   telefone: telefone.trim(),
                   qtd_cotas: cotas,
-                  status_pagamento: status,
+                  cotas_pagas: finalCotasPagas,
+                  status_pagamento: finalStatus,
                 });
               } else {
                 ok = await onAdd({
@@ -411,7 +429,8 @@ export function AddParticipantModal({
                   nome: nome.trim(),
                   telefone: telefone.trim(),
                   qtd_cotas: cotas,
-                  status_pagamento: status,
+                  cotas_pagas: finalCotasPagas,
+                  status_pagamento: finalStatus,
                   data_registro: new Date().toISOString(),
                 });
               }
@@ -466,32 +485,72 @@ export function AddParticipantModal({
             <select
               value={status}
               onChange={(e) => {
-                setStatus(e.target.value as StatusPagamento);
+                const nextSt = e.target.value as StatusPagamento;
+                setStatus(nextSt);
+                if (nextSt === "Pago") {
+                  setCotasPagas(cotas);
+                } else if (participanteEditando) {
+                  const origPagas = obterCotasPagas(participanteEditando);
+                  setCotasPagas(origPagas < cotas ? origPagas : 0);
+                } else {
+                  setCotasPagas(0);
+                }
                 setAutoRevertedNotice(false);
               }}
             >
-              <option value="Pendente">Pendente</option>
-              <option value="Pago">Pago</option>
+              <option value="Pendente">
+                {cotasPagas > 0 && cotasPagas < cotas
+                  ? `Pendente apenas da diferença (+${cotas - cotasPagas} cota(s))`
+                  : "Pendente"}
+              </option>
+              <option value="Pago">Pago (todas as {cotas} cota(s) quitadas)</option>
             </select>
           </label>
 
-          {autoRevertedNotice && (
-            <p className="text-xs p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900">
-              Como a quantidade de cotas aumentou (de{" "}
-              {participanteEditando?.qtd_cotas} para {cotas}), o status foi
-              ajustado para <strong>Pendente</strong> até a confirmação da
-              diferença. Se já recebeu o valor integral, selecione{" "}
-              <strong>Pago</strong> acima.
-            </p>
+          {cotasPagas > 0 && cotasPagas < cotas && status === "Pendente" && (
+            <div className="text-xs p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-950 space-y-1">
+              <p className="font-bold">
+                ✅ {cotasPagas} {cotasPagas === 1 ? "cota já está paga" : "cotas já estão pagas"} (
+                {(cotasPagas * valorCota).toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL",
+                })}
+                ) — não será cobrada de novo!
+              </p>
+              <p>
+                {autoRevertedNotice
+                  ? "Ao salvar, o QR Code PIX e a cobrança pedirão somente a diferença das novas cotas: "
+                  : "Falta pagar apenas a diferença: "}
+                <strong>
+                  +{cotas - cotasPagas} {cotas - cotasPagas === 1 ? "cota" : "cotas"} ={" "}
+                  {((cotas - cotasPagas) * valorCota).toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })}
+                </strong>
+                .
+              </p>
+            </div>
           )}
 
-          <p className="font-semibold">
-            Total desta participação:{" "}
-            {(cotas * valorCota).toLocaleString("pt-BR", {
-              style: "currency",
-              currency: "BRL",
-            })}
-          </p>
+          <div className="space-y-0.5">
+            <p className="font-semibold">
+              Total reservado ({cotas} {cotas === 1 ? "cota" : "cotas"}):{" "}
+              {(cotas * valorCota).toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+              })}
+            </p>
+            {status === "Pendente" && cotasPagas > 0 && cotasPagas < cotas && (
+              <p className="text-sm font-bold text-amber-800">
+                Valor restante a cobrar agora:{" "}
+                {((cotas - cotasPagas) * valorCota).toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL",
+                })}
+              </p>
+            )}
+          </div>
 
           <p className="text-sm text-slate-600">
             Marque como pago somente após conferir o recebimento. O horário da

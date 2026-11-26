@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { PlusCircle, Trash2, Sparkles } from "lucide-react";
 import type { Bolao, Jogo, Participante } from "../types";
 import { getModalidadeInfo } from "../constants/lotteryCatalog";
-import { combinacao } from "../utils/lotteryEngine";
+import { combinacao, obterCotasPagas } from "../utils/lotteryEngine";
 import { currency } from "./PainelConferencia";
 import { Dialog } from "./Dialog";
 
@@ -30,9 +30,7 @@ export function PlanejadorModal({
   const apostaSimplesCentavos = Math.round(info.valorApostaSimples * 100);
 
   const totalCotasGrupo = participantes.reduce((s, p) => s + p.qtd_cotas, 0);
-  const cotasPagas = participantes
-    .filter((p) => p.status_pagamento === "Pago")
-    .reduce((s, p) => s + p.qtd_cotas, 0);
+  const cotasPagas = participantes.reduce((s, p) => s + obterCotasPagas(p), 0);
 
   // Custo dos jogos que já estão cadastrados no bolão
   const custoJogosCadastradosCentavos = useMemo(

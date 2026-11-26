@@ -14,6 +14,7 @@ import {
   Crown,
 } from 'lucide-react';
 import { Participante, Bolao } from '../types';
+import { obterCotasPagas, obterCotasPendentes } from '../utils/lotteryEngine';
 import { AlertarPendentesModal } from './AlertarPendentesModal';
 import {
   buildParticipantPortalUrl,
@@ -45,7 +46,7 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const pendentes = participantes.filter((p) => p.status_pagamento === 'Pendente');
+  const pendentes = participantes.filter((p) => obterCotasPendentes(p) > 0);
 
   const copyParticipantLink = (p: Participante) => {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
@@ -140,8 +141,11 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
           </div>
         ) : (
           filtered.map((participante) => {
-            const isPago = participante.status_pagamento === 'Pago';
+            const cotasJaPagas = obterCotasPagas(participante);
+            const cotasFaltantes = obterCotasPendentes(participante);
+            const isPago = cotasFaltantes === 0 && cotasJaPagas > 0;
             const totalParticipante = participante.qtd_cotas * bolao.valor_cota;
+            const valorRestante = cotasFaltantes * bolao.valor_cota;
             const hasPhone = Boolean((participante.telefone || '').replace(/\D/g, ''));
 
             return (
@@ -166,6 +170,11 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
                       {participante.aceite_em && (
                         <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                           Aceitou regras
+                        </span>
+                      )}
+                      {cotasJaPagas > 0 && cotasFaltantes > 0 && (
+                        <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                          Pagou {cotasJaPagas}/{participante.qtd_cotas} · falta R$ {valorRestante.toFixed(2)}
                         </span>
                       )}
                       {!isPago && participante.avisou_pagamento_em && (
@@ -209,6 +218,11 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
                         <>
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                           <span>Pago</span>
+                        </>
+                      ) : cotasJaPagas > 0 ? (
+                        <>
+                          <Clock size={13} className="text-amber-500" />
+                          <span>Confirmar +{cotasFaltantes}</span>
                         </>
                       ) : (
                         <>

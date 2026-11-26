@@ -18,6 +18,7 @@ import { useLotteryInfo } from "../hooks/useLotteryInfo";
 import { ResultadoView, currency } from "./PainelConferencia";
 import { BrandLogo } from "./BrandLogo";
 import { getModalidadeInfo, LOTTERY_SOURCES } from "../constants/lotteryCatalog";
+import { obterCotasPagas, obterCotasPendentes } from "../utils/lotteryEngine";
 import { gerarPayloadPixEstatico, gerarQrCodePixSvg } from "../utils/pix";
 
 export function PublicTransparencyView({
@@ -47,20 +48,23 @@ export function PublicTransparencyView({
   const frozen =
     !!bolao.fechado_em || Date.now() >= Date.parse(bolao.data_limite);
 
-  const isPaid = Boolean(own && own.status_pagamento === "Pago");
+  const cotasJaPagas = own ? obterCotasPagas(own) : 0;
+  const cotasRestantes = own ? obterCotasPendentes(own) : 0;
+  const isFullyPaid = Boolean(own && cotasRestantes === 0 && cotasJaPagas > 0);
+  const isPaid = Boolean(own && cotasJaPagas > 0);
   const hasAccepted = Boolean(
     own &&
-      own.aceite_em &&
+      (own.aceite_em || cotasJaPagas > 0) &&
       (!own.regras_aceitas_hash ||
         !data.regrasHash ||
         own.regras_aceitas_hash === data.regrasHash),
   );
   const transparenciaLiberada = Boolean(data.transparenciaLiberada && isPaid);
 
-  // Etapa atual do participante: 1 = Aceite, 2 = Pagamento PIX, 3 = Transparência completa
+  // Etapa atual do participante: 1 = Aceite, 2 = Pagamento PIX (total ou diferença), 3 = Transparência completa
   const currentStep = !own
     ? 1
-    : isPaid
+    : isFullyPaid
       ? 3
       : hasAccepted
         ? 2
@@ -106,10 +110,17 @@ export function PublicTransparencyView({
   }, [bolao.id, own]);
 
   const valorTotalParticipante = own ? own.qtd_cotas * bolao.valor_cota : 0;
+  const valorJaPago = cotasJaPagas * bolao.valor_cota;
+  const valorAPagarAgora = cotasRestantes * bolao.valor_cota;
 
   useEffect(() => {
     let active = true;
-    if (!own || !bolao.chave_pix_organizador || isPaid || !hasAccepted) {
+    if (
+      !own ||
+      !bolao.chave_pix_organizador ||
+      cotasRestantes <= 0 ||
+      !hasAccepted
+    ) {
       setPixPayload("");
       setPixSvg("");
       return;
@@ -120,7 +131,7 @@ export function PublicTransparencyView({
         tipoChave: bolao.tipo_chave_pix,
         nomeRecebedor: bolao.nome_organizador || "ORGANIZADOR BOLAO",
         cidadeRecebedor: bolao.cidade_loterica || "BRASILIA",
-        valor: valorTotalParticipante,
+        valor: valorAPagarAgora,
         txid: `BOLAO${bolao.concurso_numero}`,
       });
       setPixPayload(brCode);
@@ -145,8 +156,8 @@ export function PublicTransparencyView({
     bolao.nome_organizador,
     bolao.cidade_loterica,
     bolao.concurso_numero,
-    valorTotalParticipante,
-    isPaid,
+    valorAPagarAgora,
+    cotasRestantes,
     hasAccepted,
   ]);
 
@@ -489,28 +500,58 @@ export function PublicTransparencyView({
           </section>
         )}
 
-        {/* CASO 3: Link Individual — ETAPA 2 (Aceito, aguardando pagamento / confirmação) */}
-        {own && hasAccepted && !isPaid && (
+        {/* CASO 3: Link Individual — ETAPA 2 (Aceito, aguardando pagamento total ou da diferença de cotas novas) */}
+        {own && hasAccepted && cotasRestantes > 0 && (
           <section className="card space-y-4 border-2 border-emerald-600">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-xl font-bold flex items-center gap-2">
                 <QrCode size={22} className="text-emerald-700" />
-                <span>Etapa 2: Pagamento via PIX</span>
+                <span>
+                  {cotasJaPagas > 0
+                    ? `Pagamento complementar (+${cotasRestantes} ${cotasRestantes === 1 ? "cota nova" : "cotas novas"})`
+                    : "Etapa 2: Pagamento via PIX"}
+                </span>
               </h2>
               <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-900">
                 {own.avisou_pagamento_em
                   ? "PIX informado · Aguardando confirmação do organizador"
-                  : "Aguardando pagamento"}
+                  : cotasJaPagas > 0
+                    ? "Aguardando apenas a diferença"
+                    : "Aguardando pagamento"}
               </span>
             </div>
 
-            <p className="text-sm">
-              Participante: <strong>{own.nome}</strong> ·{" "}
-              <strong>{own.qtd_cotas} cota(s)</strong> · Valor exato:{" "}
-              <strong className="text-emerald-700 text-base">
-                {currency(valorTotalParticipante)}
-              </strong>
-            </p>
+            {cotasJaPagas > 0 ? (
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm space-y-1">
+                <p>
+                  Participante: <strong>{own.nome}</strong> · Total reservado:{" "}
+                  <strong>{own.qtd_cotas} cotas</strong> (
+                  {currency(valorTotalParticipante)})
+                </p>
+                <p className="text-emerald-800">
+                  ✅ Já pago e confirmado:{" "}
+                  <strong>
+                    {cotasJaPagas} {cotasJaPagas === 1 ? "cota" : "cotas"} (
+                    {currency(valorJaPago)})
+                  </strong>
+                </p>
+                <p className="text-base font-bold text-slate-900 pt-0.5">
+                  Valor a pagar agora (somente a diferença de +{cotasRestantes}{" "}
+                  {cotasRestantes === 1 ? "cota" : "cotas"}):{" "}
+                  <span className="text-emerald-700">
+                    {currency(valorAPagarAgora)}
+                  </span>
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm">
+                Participante: <strong>{own.nome}</strong> ·{" "}
+                <strong>{own.qtd_cotas} cota(s)</strong> · Valor exato:{" "}
+                <strong className="text-emerald-700 text-base">
+                  {currency(valorAPagarAgora)}
+                </strong>
+              </p>
+            )}
 
             {bolao.chave_pix_organizador ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center p-4 rounded-2xl bg-slate-50 border border-slate-200">
@@ -522,7 +563,7 @@ export function PublicTransparencyView({
                     />
                     <span className="text-xs text-slate-500 mt-2 text-center">
                       Escaneie no aplicativo do seu banco (valor já preenchido:{" "}
-                      {currency(valorTotalParticipante)})
+                      {currency(valorAPagarAgora)})
                     </span>
                   </div>
                 )}
@@ -867,11 +908,22 @@ export function PublicTransparencyView({
                   ✅ Participação confirmada — {own.nome}
                 </h2>
                 <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-600 text-white">
-                  Pago · {own.qtd_cotas} cota(s)
+                  {cotasRestantes > 0
+                    ? `${cotasJaPagas}/${own.qtd_cotas} cota(s) paga(s)`
+                    : `Pago · ${own.qtd_cotas} cota(s)`}
                 </span>
               </div>
               <p className="text-sm">
-                Valor quitado: <strong>{currency(valorTotalParticipante)}</strong>
+                Valor quitado: <strong>{currency(valorJaPago)}</strong>
+                {cotasRestantes > 0 && (
+                  <>
+                    {" "}
+                    · Pendente de confirmação:{" "}
+                    <strong className="text-amber-800">
+                      +{cotasRestantes} cota(s) ({currency(valorAPagarAgora)})
+                    </strong>
+                  </>
+                )}
                 {own.pago_em && (
                   <>
                     {" "}

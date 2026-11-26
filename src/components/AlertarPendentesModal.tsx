@@ -13,6 +13,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { Bolao, Participante } from '../types';
+import { obterCotasPagas, obterCotasPendentes } from '../utils/lotteryEngine';
 import {
   buildParticipantPortalUrl,
   buildWhatsAppReminderGroupMessage,
@@ -46,8 +47,11 @@ export const AlertarPendentesModal: React.FC<AlertarPendentesModalProps> = ({
 
   if (!isOpen) return null;
 
-  const pendentes = participantes.filter((p) => p.status_pagamento === 'Pendente');
-  const totalCotasPendentes = pendentes.reduce((acc, p) => acc + p.qtd_cotas, 0);
+  const pendentes = participantes.filter((p) => obterCotasPendentes(p) > 0);
+  const totalCotasPendentes = pendentes.reduce(
+    (acc, p) => acc + obterCotasPendentes(p),
+    0,
+  );
   const valorTotalPendente = totalCotasPendentes * bolao.valor_cota;
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://bolao-da-virada.app';
@@ -87,12 +91,15 @@ export const AlertarPendentesModal: React.FC<AlertarPendentesModalProps> = ({
         },
         destinatarios: pendentes.map((p) => {
           const personalUrl = buildParticipantPortalUrl(baseUrl, bolao, p);
+          const cotasFaltantes = obterCotasPendentes(p);
           return {
             id: p.id,
             nome: p.nome,
             telefone: p.telefone,
-            qtd_cotas: p.qtd_cotas,
-            valor_devido: p.qtd_cotas * bolao.valor_cota,
+            qtd_cotas_total: p.qtd_cotas,
+            cotas_ja_pagas: obterCotasPagas(p),
+            qtd_cotas: cotasFaltantes,
+            valor_devido: cotasFaltantes * bolao.valor_cota,
             link_exclusivo: personalUrl,
             mensagem: buildWhatsAppIndividualReminderMessage(p, bolao, personalUrl),
           };
@@ -273,7 +280,9 @@ export const AlertarPendentesModal: React.FC<AlertarPendentesModalProps> = ({
 
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {pendentes.map((p) => {
-                  const valor = p.qtd_cotas * bolao.valor_cota;
+                  const cotasJaPagas = obterCotasPagas(p);
+                  const cotasFaltantes = obterCotasPendentes(p);
+                  const valor = cotasFaltantes * bolao.valor_cota;
                   const personalUrl = buildParticipantPortalUrl(baseUrl, bolao, p);
                   const individualText = buildWhatsAppIndividualReminderMessage(p, bolao, personalUrl);
                   const directUrl = buildWhatsAppDirectUrl(p.telefone, individualText);
@@ -288,9 +297,17 @@ export const AlertarPendentesModal: React.FC<AlertarPendentesModalProps> = ({
                               Link individual exclusivo
                             </span>
                           )}
+                          {cotasJaPagas > 0 && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                              Já pagou {cotasJaPagas}/{p.qtd_cotas}
+                            </span>
+                          )}
                         </div>
                         <div className="text-xs text-slate-500 font-mono truncate">
-                          {p.telefone || 'Sem telefone'} • {p.qtd_cotas} {p.qtd_cotas === 1 ? 'cota' : 'cotas'} (R$ {valor.toFixed(2)})
+                          {p.telefone || 'Sem telefone'} •{' '}
+                          {cotasJaPagas > 0
+                            ? `Falta +${cotasFaltantes} ${cotasFaltantes === 1 ? 'cota' : 'cotas'} (R$ ${valor.toFixed(2)})`
+                            : `${cotasFaltantes} ${cotasFaltantes === 1 ? 'cota' : 'cotas'} (R$ ${valor.toFixed(2)})`}
                         </div>
                       </div>
 

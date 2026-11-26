@@ -18,6 +18,8 @@ import {
 import {
   conferirJogo,
   calcularRateioUnificado,
+  obterCotasPagas,
+  obterCotasPendentes,
 } from "../src/utils/lotteryEngine.js";
 
 const text = z.string().max(200);
@@ -99,6 +101,7 @@ const schema = z.object({
         nome: text.min(1),
         telefone: text,
         qtd_cotas: z.number().int().min(1).max(1000000),
+        cotas_pagas: z.number().int().min(0).max(1000000).optional(),
         status_pagamento: z.enum(["Pago", "Pendente"]),
         data_registro: text.optional(),
         token_acesso: text.optional(),
@@ -320,7 +323,8 @@ export function publicProjection(s: PoolState, personalToken?: string) {
     throw new HttpError(404, "Link pessoal não encontrado.");
 
   const regrasHash = computeRulesHash(s.bolao);
-  const isPaid = Boolean(own && own.status_pagamento === "Pago");
+  const ownCotasPagas = own ? obterCotasPagas(own) : 0;
+  const isPaid = Boolean(own && ownCotasPagas > 0);
   const hasAccepted = Boolean(
     own &&
       own.aceite_em &&
@@ -328,7 +332,7 @@ export function publicProjection(s: PoolState, personalToken?: string) {
   );
 
   // Regra definida pelo organizador: transparência completa (jogos, comprovantes/hashes, apuração e rateio)
-  // só é liberada depois que o pagamento do participante é confirmado pelo organizador ("Pago").
+  // é liberada quando o participante tem ao menos 1 cota paga confirmada pelo organizador.
   const transparenciaLiberada = isPaid;
   const pixLiberado = Boolean(own && (hasAccepted || isPaid));
 
@@ -402,9 +406,7 @@ export function publicProjection(s: PoolState, personalToken?: string) {
     resumo: {
       participantes: s.participantes.length,
       cotas: s.participantes.reduce((n, p) => n + p.qtd_cotas, 0),
-      cotas_pagas: s.participantes
-        .filter((p) => p.status_pagamento === "Pago")
-        .reduce((n, p) => n + p.qtd_cotas, 0),
+      cotas_pagas: s.participantes.reduce((n, p) => n + obterCotasPagas(p), 0),
       jogos: s.jogos.length,
       jogos_normais: jogosNormaisCount,
       jogos_troco: jogosTrocoCount,
@@ -541,6 +543,7 @@ export async function updatePool(
         id: p.id,
         nome: p.nome,
         qtd_cotas: p.qtd_cotas,
+        cotas_pagas: obterCotasPagas(p),
         status_pagamento: p.status_pagamento,
       })),
       jogos: s.jogos,
@@ -599,19 +602,34 @@ export async function updatePool(
   const now = new Date().toISOString();
   next.participantes = next.participantes.map((p) => {
     const previous = old.participantes.find((x) => x.id === p.id);
+    const prevPagas = previous ? obterCotasPagas(previous) : 0;
+    const rawPagas =
+      p.status_pagamento === "Pago"
+        ? p.qtd_cotas
+        : typeof p.cotas_pagas === "number"
+          ? Math.max(0, Math.min(p.qtd_cotas, Math.floor(p.cotas_pagas)))
+          : previous && p.qtd_cotas > previous.qtd_cotas
+            ? prevPagas
+            : 0;
+    const normalizedStatus =
+      rawPagas >= p.qtd_cotas ? ("Pago" as const) : ("Pendente" as const);
+    const cotasIncreased = Boolean(previous && p.qtd_cotas > previous.qtd_cotas);
+
     return {
       ...p,
+      cotas_pagas: rawPagas,
+      status_pagamento: normalizedStatus,
       token_acesso: previous?.token_acesso || token(),
       aceite_em: p.aceite_em || previous?.aceite_em,
       regras_aceitas_hash:
         p.regras_aceitas_hash || previous?.regras_aceitas_hash,
       avisou_pagamento_em:
-        p.status_pagamento === "Pago"
-          ? previous?.avisou_pagamento_em
+        normalizedStatus === "Pago" || cotasIncreased
+          ? undefined
           : p.avisou_pagamento_em || previous?.avisou_pagamento_em,
       pago_em:
-        p.status_pagamento === "Pago"
-          ? previous?.status_pagamento === "Pago"
+        rawPagas > 0
+          ? previous && prevPagas === rawPagas && previous.pago_em
             ? previous.pago_em
             : now
           : undefined,
@@ -810,18 +828,29 @@ export async function executeParticipantAction(
         now,
       );
     } else if (params.action === "informar_pagamento") {
-      if (!own.aceite_em)
+      if (!own.aceite_em && obterCotasPagas(own) === 0)
         throw new HttpError(400, "Aceite as regras antes de informar o pagamento.");
+      const cotasJaPagas = obterCotasPagas(own);
+      const cotasRestantes = obterCotasPendentes(own);
+      const valorCobrado = (
+        (cotasRestantes > 0 ? cotasRestantes : own.qtd_cotas) * bolao.valor_cota
+      ).toFixed(2);
       own.avisou_pagamento_em = now;
       historyTag = `avisou_pix_${own.nome.slice(0, 24)}`;
       state.eventos = appendEvent(
         state.eventos,
         {
           tipo: "pagamento_informado",
-          titulo: `${own.nome} informou que realizou o PIX (R$ ${(own.qtd_cotas * bolao.valor_cota).toFixed(2)})`,
+          titulo:
+            cotasJaPagas > 0 && cotasRestantes > 0
+              ? `${own.nome} informou PIX complementar (+${cotasRestantes} cota(s) = R$ ${valorCobrado})`
+              : `${own.nome} informou que realizou o PIX (R$ ${valorCobrado})`,
           participante_id: own.id,
           participante_nome: own.nome,
-          mensagem_whatsapp: `💰 *[${bolao.nome}]* Pagamento informado!\n• Participante: *${own.nome}*${own.telefone ? ` (${own.telefone})` : ""}\n• Cotas: *${own.qtd_cotas}* — *R$ ${(own.qtd_cotas * bolao.valor_cota).toFixed(2)}*\nConfira sua conta PIX e confirme o pagamento no painel do organizador para liberar a transparência completa.`,
+          mensagem_whatsapp:
+            cotasJaPagas > 0 && cotasRestantes > 0
+              ? `💰 *[${bolao.nome}]* PIX complementar informado!\n• Participante: *${own.nome}*${own.telefone ? ` (${own.telefone})` : ""}\n• Diferença paga agora: *+${cotasRestantes} cota(s)* — *R$ ${valorCobrado}*\n• Já tinha quitado antes: ${cotasJaPagas} cota(s) (total reservado: ${own.qtd_cotas} cotas)\nConfira sua conta PIX e confirme o pagamento no painel do organizador.`
+              : `💰 *[${bolao.nome}]* Pagamento informado!\n• Participante: *${own.nome}*${own.telefone ? ` (${own.telefone})` : ""}\n• Cotas: *${own.qtd_cotas}* — *R$ ${valorCobrado}*\nConfira sua conta PIX e confirme o pagamento no painel do organizador para liberar a transparência completa.`,
         },
         now,
       );

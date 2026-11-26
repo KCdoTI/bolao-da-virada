@@ -1,4 +1,5 @@
-import { Bolao, Participante, Jogo } from '../types';
+import { Bolao, Participante, Jogo } from '../types/index.js';
+import { obterCotasPagas, obterCotasPendentes } from './lotteryEngine.js';
 
 /**
  * Ofusca os dígitos centrais do telefone para privacidade na visualização pública (LGPD)
@@ -53,9 +54,7 @@ export function buildWhatsAppShareMessage(
   jogos: Jogo[],
   publicUrl: string
 ): string {
-  const cotasPagas = participantes
-    .filter((p) => p.status_pagamento === 'Pago')
-    .reduce((acc, p) => acc + p.qtd_cotas, 0);
+  const cotasPagas = participantes.reduce((acc, p) => acc + obterCotasPagas(p), 0);
   const totalCotas = participantes.reduce((acc, p) => acc + p.qtd_cotas, 0);
 
   const dataFmt = new Date(bolao.data_limite).toLocaleDateString('pt-BR', {
@@ -113,7 +112,10 @@ export function buildWhatsAppReminderGroupMessage(
   participantesPendentes: Participante[],
   publicUrl: string
 ): string {
-  const cotasPendentes = participantesPendentes.reduce((acc, p) => acc + p.qtd_cotas, 0);
+  const cotasPendentes = participantesPendentes.reduce(
+    (acc, p) => acc + obterCotasPendentes(p),
+    0
+  );
   const valorTotalPendente = cotasPendentes * bolao.valor_cota;
 
   const dataFmt = new Date(bolao.data_limite).toLocaleDateString('pt-BR', {
@@ -152,7 +154,11 @@ export function buildWhatsAppIndividualReminderMessage(
   bolao: Bolao,
   participantPersonalUrl: string
 ): string {
-  const totalDevido = participante.qtd_cotas * bolao.valor_cota;
+  const cotasJaPagas = obterCotasPagas(participante);
+  const cotasFaltantes = obterCotasPendentes(participante);
+  const cotasACobrar = cotasFaltantes > 0 ? cotasFaltantes : participante.qtd_cotas;
+  const valorACobrar = cotasACobrar * bolao.valor_cota;
+  const totalReservado = participante.qtd_cotas * bolao.valor_cota;
 
   const dataFmt = new Date(bolao.data_limite).toLocaleDateString('pt-BR', {
     day: '2-digit',
@@ -164,6 +170,22 @@ export function buildWhatsAppIndividualReminderMessage(
     minute: '2-digit',
   });
 
+  if (cotasJaPagas > 0 && cotasFaltantes > 0) {
+    return `Olá ${participante.nome}! Tudo bem?
+
+Atualizamos sua participação no *${bolao.nome}* (${bolao.modalidade} · Concurso #${bolao.concurso_numero}):
+
+• Total reservado agora: ${participante.qtd_cotas} cotas (R$ ${totalReservado.toFixed(2)})
+• Já confirmado como pago: ${cotasJaPagas} ${cotasJaPagas === 1 ? 'cota' : 'cotas'} (R$ ${(cotasJaPagas * bolao.valor_cota).toFixed(2)}) ✅
+• *Diferença a pagar (+${cotasFaltantes} ${cotasFaltantes === 1 ? 'cota nova' : 'cotas novas'}): R$ ${valorACobrar.toFixed(2)}*
+• Prazo limite: ${dataFmt} às ${horaFmt}
+
+Acesse seu link exclusivo abaixo — o *QR Code PIX* já está calculado apenas com a diferença de *R$ ${valorACobrar.toFixed(2)}*:
+
+🔗 *Seu link individual (não compartilhe):*
+${participantPersonalUrl}`;
+  }
+
   const etapaInstrucao = participante.aceite_em
     ? `Seu aceite já está registrado! Acesse seu link exclusivo abaixo para copiar o *QR Code PIX* no valor exato e clicar em *"Já fiz o PIX"*.`
     : `Acesse seu *link exclusivo* abaixo para:\n1️⃣ Ver e aceitar as regras do bolão;\n2️⃣ Liberar o *QR Code PIX / Copia e Cola* já com o valor exato;\n3️⃣ Acompanhar os jogos e comprovantes após a confirmação do pagamento.`;
@@ -173,7 +195,7 @@ export function buildWhatsAppIndividualReminderMessage(
 Passando para lembrar da sua participação no *${bolao.nome}* (${bolao.modalidade} · Concurso #${bolao.concurso_numero}):
 
 • Suas cotas reservadas: ${participante.qtd_cotas} ${participante.qtd_cotas === 1 ? 'cota' : 'cotas'}
-• Valor total: R$ ${totalDevido.toFixed(2)}
+• Valor total: R$ ${valorACobrar.toFixed(2)}
 • Prazo limite: ${dataFmt} às ${horaFmt}
 
 ${etapaInstrucao}
@@ -190,13 +212,28 @@ export function buildWhatsAppIndividualParticipantLinkMessage(
   bolao: Bolao,
   participantPersonalUrl: string
 ): string {
+  const cotasJaPagas = obterCotasPagas(participante);
+  const cotasFaltantes = obterCotasPendentes(participante);
   const totalDevido = participante.qtd_cotas * bolao.valor_cota;
-  const isPago = participante.status_pagamento === 'Pago';
+  const isTotalmentePago = cotasFaltantes === 0 && cotasJaPagas > 0;
+
+  const resumoFinanceiro =
+    cotasJaPagas > 0 && cotasFaltantes > 0
+      ? `• Suas Cotas: ${participante.qtd_cotas} no total (${cotasJaPagas} já paga(s) ✅ · falta pagar +${cotasFaltantes} = *R$ ${(cotasFaltantes * bolao.valor_cota).toFixed(2)}*)`
+      : `• Suas Cotas: ${participante.qtd_cotas} cota(s) — R$ ${totalDevido.toFixed(2)}`;
+
+  const statusTexto = isTotalmentePago
+    ? '✅ Confirmado e Pago (jogos e comprovantes liberados!)'
+    : cotasJaPagas > 0
+      ? `⏳ Falta confirmar a diferença de +${cotasFaltantes} cota(s) (R$ ${(cotasFaltantes * bolao.valor_cota).toFixed(2)})`
+      : participante.aceite_em
+        ? '⏳ Regras aceitas · Aguardando PIX'
+        : '1️⃣ Aguardando aceite das regras para liberar o QR Code PIX';
 
   return `Olá ${participante.nome}! Aqui está o seu *link individual exclusivo* do *${bolao.nome}* (${bolao.modalidade} · Concurso #${bolao.concurso_numero}):
 
-• Suas Cotas: ${participante.qtd_cotas} cota(s) — R$ ${totalDevido.toFixed(2)}
-• Status Atual: ${isPago ? '✅ Confirmado e Pago (jogos e comprovantes liberados!)' : participante.aceite_em ? '⏳ Regras aceitas · Aguardando PIX' : '1️⃣ Aguardando aceite das regras para liberar o QR Code PIX'}
+${resumoFinanceiro}
+• Status Atual: ${statusTexto}
 
 🔗 *Acesse seu painel exclusivo (não compartilhe):*
 ${participantPersonalUrl}`;
@@ -229,9 +266,7 @@ export function generateCanonicalManifest(
   participantes: Participante[],
   jogos: Jogo[]
 ): string {
-  const cotasPagas = participantes
-    .filter((p) => p.status_pagamento === 'Pago')
-    .reduce((acc, p) => acc + p.qtd_cotas, 0);
+  const cotasPagas = participantes.reduce((acc, p) => acc + obterCotasPagas(p), 0);
 
   const jogosOrdenados = [...jogos]
     .sort((a, b) => a.id.localeCompare(b.id))
@@ -252,11 +287,11 @@ export function generateCanonicalManifest(
     }));
 
   const participantesConfirmados = participantes
-    .filter((p) => p.status_pagamento === 'Pago')
+    .filter((p) => obterCotasPagas(p) > 0)
     .sort((a, b) => a.nome.localeCompare(b.nome))
     .map((p) => ({
       nome: p.nome,
-      cotas: p.qtd_cotas,
+      cotas: obterCotasPagas(p),
     }));
 
   return JSON.stringify({

@@ -1,6 +1,7 @@
 import React from 'react';
 import { DollarSign, CheckCircle2, Clock, Ticket } from 'lucide-react';
 import { Bolao, Participante, Jogo } from '../types';
+import { obterCotasPagas, obterCotasPendentes } from '../utils/lotteryEngine';
 
 interface FinancialSummaryProps {
   bolao: Bolao;
@@ -14,9 +15,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({
   jogos,
 }) => {
   const totalCotas = participantes.reduce((acc, p) => acc + p.qtd_cotas, 0);
-  const cotasPagas = participantes
-    .filter((p) => p.status_pagamento === 'Pago')
-    .reduce((acc, p) => acc + p.qtd_cotas, 0);
+  const cotasPagas = participantes.reduce((acc, p) => acc + obterCotasPagas(p), 0);
   const cotasPendentes = totalCotas - cotasPagas;
 
   const totalArrecadado = cotasPagas * bolao.valor_cota;
@@ -90,7 +89,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({
           </div>
         </div>
         <div className="text-xs text-amber-600 dark:text-amber-400 font-semibold truncate">
-          {participantes.filter((p) => p.status_pagamento === 'Pendente').length} participantes pendentes
+          {participantes.filter((p) => obterCotasPendentes(p) > 0).length} participantes pendentes
         </div>
       </div>
 

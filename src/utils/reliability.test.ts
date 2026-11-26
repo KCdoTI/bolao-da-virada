@@ -17,7 +17,13 @@ import {
   fetchLotteryLiveInfo,
   parseCaixaPortalSummary,
 } from "../../server/lotteryInfo.js";
-import { conferirJogo, calcularRateio, calcularRateioUnificado } from "./lotteryEngine.js";
+import {
+  conferirJogo,
+  calcularRateio,
+  calcularRateioUnificado,
+  obterCotasPagas,
+  obterCotasPendentes,
+} from "./lotteryEngine.js";
 import { gerarPayloadPixEstatico, gerarQrCodePixSvg } from "./pix.js";
 import {
   parseVCardContacts,
@@ -926,6 +932,114 @@ test("Lote C: jogos de troco em outra categoria (Quina dentro da Mega-Sena) vali
     assert.equal(personalAmigo.rateioPessoal, 200);
     assert.equal(personalAmigo.bolao.resultados_extras.length, 1);
     assert.equal(personalAmigo.bolao.resultados_extras[0].modalidade, "Quina");
+  } finally {
+    db.close?.();
+  }
+});
+
+test("Aumentar cotas de participante já pago cobra somente a diferença (+1 cota) e preserva o que já foi quitado", async () => {
+  const db = await sqliteStore(":memory:");
+  try {
+    const initial = state();
+    initial.bolao.valor_cota = 12;
+    initial.bolao.chave_pix_organizador = "371.460.128-75";
+    initial.participantes = [
+      {
+        id: "p-ev",
+        bolao_id: "new",
+        nome: "Eveline",
+        telefone: "11975388246",
+        qtd_cotas: 1,
+        status_pagamento: "Pago",
+      },
+    ];
+
+    const created = await createPool(db, initial);
+    const evInicial = created.participantes[0];
+    assert.equal(obterCotasPagas(evInicial), 1);
+    assert.equal(obterCotasPendentes(evInicial), 0);
+
+    // Organizador aumenta Eveline de 1 cota para 2 cotas (mantendo 1 cota já paga!)
+    const afterIncrease = await updatePool(
+      db,
+      created.adminToken,
+      {
+        bolao: created.bolao,
+        jogos: [],
+        participantes: [
+          {
+            ...evInicial,
+            qtd_cotas: 2,
+            cotas_pagas: 1,
+            status_pagamento: "Pendente",
+          },
+        ],
+      },
+      1,
+      "participante_editado",
+    );
+
+    const evEditada = afterIncrease.participantes[0];
+    assert.equal(evEditada.qtd_cotas, 2);
+    assert.equal(evEditada.cotas_pagas, 1);
+    assert.equal(evEditada.status_pagamento, "Pendente");
+    assert.equal(obterCotasPagas(evEditada), 1);
+    assert.equal(obterCotasPendentes(evEditada), 1);
+
+    // No link individual, o resumo mantém 1 cota paga e a mensagem de WhatsApp cobra R$ 12,00 (e NÃO R$ 24,00!)
+    const personalView: any = await readPool(
+      db,
+      afterIncrease.bolao.hash_slug,
+      undefined,
+      evEditada.token_acesso,
+    );
+    assert.equal(personalView.resumo.cotas, 2);
+    assert.equal(personalView.resumo.cotas_pagas, 1);
+    assert.equal(personalView.transparenciaLiberada, true);
+
+    const linkEv = buildParticipantPortalUrl(
+      "https://bolao-da-virada-hazel.vercel.app",
+      afterIncrease.bolao,
+      evEditada,
+    );
+    const msgCobranca = buildWhatsAppIndividualReminderMessage(
+      evEditada,
+      afterIncrease.bolao,
+      linkEv,
+    );
+    assert.match(msgCobranca, /\+1 cota nova\): R\$ 12\.00/);
+    assert.match(msgCobranca, /Já confirmado como pago: 1 cota \(R\$ 12\.00\)/);
+
+    // Participante clica em "Já fiz o PIX" da diferença -> evento alerta exatamente +1 cota (R$ 12.00)
+    await executeParticipantAction(db, {
+      slug: afterIncrease.bolao.hash_slug,
+      personalToken: evEditada.token_acesso,
+      action: "informar_pagamento",
+    });
+    const evts = await managePoolEvents(db, created.adminToken, {
+      onlyUnacked: true,
+    });
+    assert.match(evts.eventos[0].mensagem_whatsapp, /\+1 cota\(s\) — \*R\$ 12\.00\*/);
+
+    // Organizador confirma o pagamento complementar -> passa para 2/2 cotas pagas
+    const currentAdmin: any = await readPool(db, "", created.adminToken);
+    const fullyPaid = await updatePool(
+      db,
+      created.adminToken,
+      {
+        bolao: currentAdmin.bolao,
+        jogos: currentAdmin.jogos,
+        participantes: currentAdmin.participantes.map((p: any) => ({
+          ...p,
+          status_pagamento: "Pago",
+          cotas_pagas: p.qtd_cotas,
+        })),
+      },
+      currentAdmin.revision,
+    );
+    assert.equal(fullyPaid.participantes[0].status_pagamento, "Pago");
+    assert.equal(obterCotasPagas(fullyPaid.participantes[0]), 2);
+    assert.equal(obterCotasPendentes(fullyPaid.participantes[0]), 0);
   } finally {
     db.close?.();
   }
