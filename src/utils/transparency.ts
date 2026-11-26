@@ -29,7 +29,23 @@ export function maskPhone(phone: string): string {
 }
 
 /**
- * Monta mensagem estruturada com emojis para envio no WhatsApp
+ * Monta a URL exclusiva do participante (#cota-<slug>.<token_acesso>).
+ * Só recorre ao link público geral (#b-<slug>) se o registro não tiver token_acesso.
+ */
+export function buildParticipantPortalUrl(
+  baseUrl: string,
+  bolao: Pick<Bolao, 'hash_slug'>,
+  participante?: Pick<Participante, 'token_acesso'> | null
+): string {
+  const cleanBase = (baseUrl || '').replace(/\/+$/, '');
+  if (participante?.token_acesso) {
+    return `${cleanBase}/#cota-${bolao.hash_slug}.${participante.token_acesso}`;
+  }
+  return `${cleanBase}/#b-${bolao.hash_slug}`;
+}
+
+/**
+ * Monta mensagem estruturada com emojis para envio no WhatsApp (grupo)
  */
 export function buildWhatsAppShareMessage(
   bolao: Bolao,
@@ -56,17 +72,14 @@ export function buildWhatsAppShareMessage(
 Modalidade: ${bolao.modalidade} (Concurso #${bolao.concurso_numero})
 
 • Valor da Cota: R$ ${bolao.valor_cota.toFixed(2)}
-• Data Limite de Pagamento: ${dataFmt} às ${horaFmt}
-• Chave PIX do Organizador: ${bolao.chave_pix_organizador}
+• Prazo Limite de Pagamento: ${dataFmt} às ${horaFmt}
 
-[Status de Arrecadação]
+[Status do Grupo]
 • Cotas confirmadas: ${cotasPagas}/${totalCotas} (${totalCotas > 0 ? Math.round((cotasPagas / totalCotas) * 100) : 0}%)
-• Jogos registrados: ${jogos.length} apostas
+• Jogos registrados: ${jogos.length} aposta(s)
 
-[Painel de Transparência e Auditoria (sem login)]
-${publicUrl}
-
-Confira os recibos originais com o organizador.`;
+Para entrar no bolão, ver as regras e gerar seu QR Code PIX (ou se já estiver inscrito, use o seu link individual enviado no privado):
+${publicUrl}`;
 }
 
 /**
@@ -116,30 +129,28 @@ export function buildWhatsAppReminderGroupMessage(
   return `*LEMBRETE DO BOLÃO — ${bolao.nome.toUpperCase()}*
 Modalidade: ${bolao.modalidade} (Concurso #${bolao.concurso_numero})
 
-Atenção participantes! Ainda temos cotas pendentes para registrar todos os bilhetes na lotérica antes do prazo final.
+Atenção participantes! Ainda temos cotas pendentes para fechar o caixa antes do prazo limite.
 
 [Cotas Pendentes de Confirmação]
-• Participantes com cota pendente: ${participantesPendentes.length}
+• Participantes pendentes: ${participantesPendentes.length}
 • Cotas a confirmar: ${cotasPendentes} cota(s) (Total: R$ ${valorTotalPendente.toFixed(2)})
 • Prazo Limite: ${dataFmt} às ${horaFmt}
-
-[Dados para Pagamento via PIX]
-• Chave PIX do Organizador: ${bolao.chave_pix_organizador}
 • Valor por cota: R$ ${bolao.valor_cota.toFixed(2)}
 
-Após realizar a transferência, favor enviar o comprovante para confirmação imediata.
+👉 Quem já está na lista: acesse o *seu link individual* enviado no privado para aceitar as regras, gerar o QR Code PIX com o valor exato e clicar em *"Já fiz o PIX"*.
 
-Acompanhe o status e os bilhetes registrados em tempo real:
+Link geral de informações do bolão:
 ${publicUrl}`;
 }
 
 /**
  * Monta mensagem individual e personalizada para cobrança direta do participante
+ * (SEMPRE recebe o link exclusivo #cota-<slug>.<token_acesso> da pessoa)
  */
 export function buildWhatsAppIndividualReminderMessage(
   participante: Participante,
   bolao: Bolao,
-  publicUrl: string
+  participantPersonalUrl: string
 ): string {
   const totalDevido = participante.qtd_cotas * bolao.valor_cota;
 
@@ -153,19 +164,22 @@ export function buildWhatsAppIndividualReminderMessage(
     minute: '2-digit',
   });
 
+  const etapaInstrucao = participante.aceite_em
+    ? `Seu aceite já está registrado! Acesse seu link exclusivo abaixo para copiar o *QR Code PIX* no valor exato e clicar em *"Já fiz o PIX"*.`
+    : `Acesse seu *link exclusivo* abaixo para:\n1️⃣ Ver e aceitar as regras do bolão;\n2️⃣ Liberar o *QR Code PIX / Copia e Cola* já com o valor exato;\n3️⃣ Acompanhar os jogos e comprovantes após a confirmação do pagamento.`;
+
   return `Olá ${participante.nome}! Tudo bem?
 
-Passando para lembrar da sua participação no *${bolao.nome}* (${bolao.modalidade}):
+Passando para lembrar da sua participação no *${bolao.nome}* (${bolao.modalidade} · Concurso #${bolao.concurso_numero}):
 
 • Suas cotas reservadas: ${participante.qtd_cotas} ${participante.qtd_cotas === 1 ? 'cota' : 'cotas'}
-• Valor a transferir: R$ ${totalDevido.toFixed(2)}
-• Chave PIX do Organizador: ${bolao.chave_pix_organizador}
+• Valor total: R$ ${totalDevido.toFixed(2)}
 • Prazo limite: ${dataFmt} às ${horaFmt}
 
-Assim que fizer o PIX, me avise para eu marcar sua cota como Paga no painel do grupo!
+${etapaInstrucao}
 
-Você pode acompanhar os jogos e comprovantes do bolão aqui:
-${publicUrl}`;
+🔗 *Seu link individual (não compartilhe):*
+${participantPersonalUrl}`;
 }
 
 /**
@@ -179,13 +193,12 @@ export function buildWhatsAppIndividualParticipantLinkMessage(
   const totalDevido = participante.qtd_cotas * bolao.valor_cota;
   const isPago = participante.status_pagamento === 'Pago';
 
-  return `Olá ${participante.nome}! Aqui está o seu link pessoal e seguro de acompanhamento do *${bolao.nome}*:
+  return `Olá ${participante.nome}! Aqui está o seu *link individual exclusivo* do *${bolao.nome}* (${bolao.modalidade} · Concurso #${bolao.concurso_numero}):
 
 • Suas Cotas: ${participante.qtd_cotas} cota(s) — R$ ${totalDevido.toFixed(2)}
-• Status Atual: ${isPago ? 'Confirmado e Pago' : 'Aguardando Pagamento PIX'}
-• Chave PIX do Organizador: ${bolao.chave_pix_organizador}
+• Status Atual: ${isPago ? '✅ Confirmado e Pago (jogos e comprovantes liberados!)' : participante.aceite_em ? '⏳ Regras aceitas · Aguardando PIX' : '1️⃣ Aguardando aceite das regras para liberar o QR Code PIX'}
 
-Acesse seu painel pessoal de transparência (bilhetes registrados e conferência ao vivo):
+🔗 *Acesse seu painel exclusivo (não compartilhe):*
 ${participantPersonalUrl}`;
 }
 

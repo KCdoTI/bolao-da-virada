@@ -24,7 +24,12 @@ import {
   parsePastedContactsList,
 } from "./contacts.js";
 import { parseCaixaTicketText } from "./lotteryOcrParser";
-import { calculateSha256, generateCanonicalManifest } from "./transparency";
+import {
+  buildParticipantPortalUrl,
+  buildWhatsAppIndividualReminderMessage,
+  calculateSha256,
+  generateCanonicalManifest,
+} from "./transparency";
 import type { PoolState, Participante } from "../types";
 const state = (): PoolState => ({
   bolao: {
@@ -687,6 +692,35 @@ test("Lote C: parser vCard (.vcf com Quoted-Printable UTF-8 e múltiplos contato
   assert.equal(pasted[1].cotasSugeridas, 2);
   assert.equal(pasted[2].nome, "Fernanda");
   assert.equal(pasted[2].telefone, "(41) 96666-5555");
+
+  // Cobrança individual SEMPRE usa o link exclusivo #cota-<slug>.<token_acesso> (e nunca #b-<slug>)
+  const s = state();
+  s.bolao.hash_slug = "slugPublico123";
+  const eveline: Participante = {
+    id: "p-ev",
+    bolao_id: s.bolao.id,
+    nome: "Eveline",
+    telefone: "+55 11 97538-8246",
+    qtd_cotas: 1,
+    status_pagamento: "Pendente",
+    token_acesso: "tokenExclusivoEveline999",
+  };
+  const personalUrl = buildParticipantPortalUrl(
+    "https://bolao-da-virada-hazel.vercel.app",
+    s.bolao,
+    eveline,
+  );
+  assert.equal(
+    personalUrl,
+    "https://bolao-da-virada-hazel.vercel.app/#cota-slugPublico123.tokenExclusivoEveline999",
+  );
+  const msg = buildWhatsAppIndividualReminderMessage(
+    eveline,
+    s.bolao,
+    personalUrl,
+  );
+  assert.match(msg, /#cota-slugPublico123\.tokenExclusivoEveline999/);
+  assert.doesNotMatch(msg, /#b-slugPublico123/);
 });
 
 test("Lote C: jogos de troco em outra categoria (Quina dentro da Mega-Sena) validam modalidade própria, apuram resultado extra e dividem prêmio igualmente", async () => {

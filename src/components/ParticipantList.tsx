@@ -16,6 +16,7 @@ import {
 import { Participante, Bolao } from '../types';
 import { AlertarPendentesModal } from './AlertarPendentesModal';
 import {
+  buildParticipantPortalUrl,
   buildWhatsAppIndividualParticipantLinkMessage,
   buildWhatsAppDirectUrl,
 } from '../utils/transparency';
@@ -47,9 +48,8 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
   const pendentes = participantes.filter((p) => p.status_pagamento === 'Pendente');
 
   const copyParticipantLink = (p: Participante) => {
-    const personalUrl = typeof window !== 'undefined'
-      ? `${window.location.origin}/#cota-${bolao.hash_slug}.${p.token_acesso}`
-      : `/#cota-${bolao.hash_slug}.${p.token_acesso}`;
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const personalUrl = buildParticipantPortalUrl(baseUrl, bolao, p);
     navigator.clipboard.writeText(personalUrl);
     setCopiedId(p.id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -251,8 +251,12 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
                           buildWhatsAppIndividualParticipantLinkMessage(
                             participante,
                             bolao,
-                            `${typeof window !== 'undefined' ? window.location.origin : ''}/#cota-${bolao.hash_slug}.${participante.token_acesso}`
-                          )
+                            buildParticipantPortalUrl(
+                              typeof window !== 'undefined' ? window.location.origin : '',
+                              bolao,
+                              participante,
+                            ),
+                          ),
                         )}
                         target="_blank"
                         rel="noopener noreferrer"

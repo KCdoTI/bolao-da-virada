@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Bolao, Participante } from '../types';
 import {
+  buildParticipantPortalUrl,
   buildWhatsAppReminderGroupMessage,
   buildWhatsAppIndividualReminderMessage,
   buildWhatsAppDirectUrl,
@@ -84,14 +85,18 @@ export const AlertarPendentesModal: React.FC<AlertarPendentesModalProps> = ({
           cotas_pendentes: totalCotasPendentes,
           valor_pendente: valorTotalPendente,
         },
-        destinatarios: pendentes.map((p) => ({
-          id: p.id,
-          nome: p.nome,
-          telefone: p.telefone,
-          qtd_cotas: p.qtd_cotas,
-          valor_devido: p.qtd_cotas * bolao.valor_cota,
-          mensagem: buildWhatsAppIndividualReminderMessage(p, bolao, publicUrl),
-        })),
+        destinatarios: pendentes.map((p) => {
+          const personalUrl = buildParticipantPortalUrl(baseUrl, bolao, p);
+          return {
+            id: p.id,
+            nome: p.nome,
+            telefone: p.telefone,
+            qtd_cotas: p.qtd_cotas,
+            valor_devido: p.qtd_cotas * bolao.valor_cota,
+            link_exclusivo: personalUrl,
+            mensagem: buildWhatsAppIndividualReminderMessage(p, bolao, personalUrl),
+          };
+        }),
       };
 
       const res = await fetch(webhookUrl, {
@@ -269,17 +274,23 @@ export const AlertarPendentesModal: React.FC<AlertarPendentesModalProps> = ({
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {pendentes.map((p) => {
                   const valor = p.qtd_cotas * bolao.valor_cota;
-                  const individualText = buildWhatsAppIndividualReminderMessage(p, bolao, publicUrl);
+                  const personalUrl = buildParticipantPortalUrl(baseUrl, bolao, p);
+                  const individualText = buildWhatsAppIndividualReminderMessage(p, bolao, personalUrl);
                   const directUrl = buildWhatsAppDirectUrl(p.telefone, individualText);
 
                   return (
                     <div key={p.id} className="py-3 flex items-center justify-between gap-3">
-                      <div>
-                        <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100">
-                          {p.nome}
+                      <div className="min-w-0">
+                        <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
+                          <span>{p.nome}</span>
+                          {p.token_acesso && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Link individual exclusivo
+                            </span>
+                          )}
                         </div>
-                        <div className="text-xs text-slate-500 font-mono">
-                          {p.telefone} • {p.qtd_cotas} {p.qtd_cotas === 1 ? 'cota' : 'cotas'} (R$ {valor.toFixed(2)})
+                        <div className="text-xs text-slate-500 font-mono truncate">
+                          {p.telefone || 'Sem telefone'} • {p.qtd_cotas} {p.qtd_cotas === 1 ? 'cota' : 'cotas'} (R$ {valor.toFixed(2)})
                         </div>
                       </div>
 
