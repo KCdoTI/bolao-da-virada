@@ -29,7 +29,10 @@ import {
   parseVCardContacts,
   parsePastedContactsList,
 } from "./contacts.js";
-import { parseCaixaTicketText } from "./lotteryOcrParser";
+import {
+  extractCaixaTicketMetadata,
+  parseCaixaTicketText,
+} from "./lotteryOcrParser";
 import {
   buildParticipantPortalUrl,
   buildWhatsAppIndividualReminderMessage,
@@ -244,6 +247,37 @@ test("OCR ignora metadados e não inventa dezenas de datas", () => {
   );
   assert.deepEqual(parseCaixaTicketText("01 01 02 03 04 05", "Mega-Sena"), []);
   assert.deepEqual(parseCaixaTicketText("01 02 03 04 05 99", "Mega-Sena"), []);
+
+  // Caso real de bilhete térmico Bolão Caixa (5 jogos A..E com zero cortado, SU e números colados)
+  const realThermalOcr = `
+BOLAO CAIXA
+COTA 17/17 :
+A424-A40057C1855A1B6C99-8
+COMBINADA G7
+26N0V2626 HORA OF 17:01:02
+A 19 253338 44 51 56 SU
+B ©9 12 13 22 2351 52 SU
+C @2 99 21 26 34 55 5g sl
+0D 2 85 89 12 40 41 56 4
+F O96 31 43 45 46 52 60
+E. LOTERICO 21.821277-2 TERMINAL 067656
+CONC. 3091 26NDV2026
+VALOR DA COTA: R$ 12, 40*
+  `.trim();
+
+  const meta = extractCaixaTicketMetadata(realThermalOcr);
+  assert.equal(meta.codigoBilhete, "A424-A40057C1855A1B6C99-8");
+  assert.equal(meta.concurso, 3091);
+  assert.equal(meta.combinadaDezenas, 7);
+  assert.equal(meta.cotaBolaoCaixa, "17/17");
+
+  const parsedGames = parseCaixaTicketText(realThermalOcr, "Mega-Sena");
+  assert.equal(parsedGames.length, 5);
+  assert.deepEqual(parsedGames[0].dezenas, [19, 25, 33, 38, 44, 51, 56]);
+  assert.deepEqual(parsedGames[1].dezenas, [9, 12, 13, 22, 23, 51, 52]);
+  assert.deepEqual(parsedGames[2].dezenas, [2, 9, 21, 26, 34, 55, 59]);
+  assert.deepEqual(parsedGames[3].dezenas, [2, 5, 9, 12, 40, 41, 56]);
+  assert.deepEqual(parsedGames[4].dezenas, [6, 31, 43, 45, 46, 52, 60]);
 });
 test("motor recusa duplicatas e aceita Mega com vinte dezenas", () => {
   const j = {

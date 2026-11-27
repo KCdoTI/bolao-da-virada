@@ -11,6 +11,7 @@ interface VolanteModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaveJogo: (novoJogo: Omit<Jogo, 'id' | 'criado_em'>) => Promise<boolean>;
+  onSaveJogosBatch?: (novosJogos: Omit<Jogo, 'id' | 'criado_em'>[]) => Promise<boolean>;
   bolaoId: string;
   initialDezenas?: number[];
   initialTipoJogo?: TipoJogoBolao;
@@ -22,6 +23,7 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
   isOpen,
   onClose,
   onSaveJogo,
+  onSaveJogosBatch,
   bolaoId,
   initialDezenas,
   initialTipoJogo = 'normal',
@@ -93,11 +95,61 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
     setSelectedNumbers(Array.from(nums).sort((a, b) => a - b));
   };
 
-  const handleOcrResult = (dezenas: number[], imageUrl?: string) => {
+  const handleOcrResult = (
+    dezenas: number[],
+    imageUrl?: string,
+    extractedCode?: string,
+  ) => {
     setSelectedNumbers(dezenas);
     if (imageUrl) {
       setFotoUrl(imageUrl);
     }
+    if (extractedCode && !codigoBilhete.trim()) {
+      setCodigoBilhete(extractedCode);
+    }
+  };
+
+  const handleOcrMultiplosResult = async (
+    listaDezenas: number[][],
+    imageUrl?: string,
+    extractedCode?: string,
+  ): Promise<boolean> => {
+    if (!onSaveJogosBatch) return false;
+    const customMod =
+      tipoJogo === 'troco' && effectiveModalidade !== modalidade
+        ? effectiveModalidade
+        : undefined;
+    const customConc =
+      tipoJogo === 'troco' &&
+      (customMod || effectiveConcurso !== concursoBolao)
+        ? effectiveConcurso
+        : undefined;
+    const code = (extractedCode || codigoBilhete).trim() || undefined;
+    const obs = observacao.trim() || undefined;
+
+    const ok = await onSaveJogosBatch(
+      listaDezenas.map((dez, idx) => ({
+        bolao_id: bolaoId,
+        dezenas: dez,
+        foto_url: imageUrl?.trim() || fotoUrl.trim() || undefined,
+        codigo_bilhete: code,
+        tipo_jogo: tipoJogo,
+        observacao:
+          obs ||
+          `Bilhete com ${listaDezenas.length} jogos (Jogo ${String.fromCharCode(65 + (idx % 26))})`,
+        modalidade_especifica: customMod,
+        concurso_especifico: customConc,
+      })),
+    );
+    if (ok) {
+      setSelectedNumbers([]);
+      setFotoUrl('');
+      setCodigoBilhete('');
+      setObservacao('');
+      setTipoJogo('normal');
+      onClose();
+    }
+    return ok;
   };
 
   const handleSave = async () => {
@@ -475,6 +527,9 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
         isOpen={isOcrOpen}
         onClose={() => setIsOcrOpen(false)}
         onDezenasConfirmadas={handleOcrResult}
+        onMultiplosJogosConfirmados={
+          onSaveJogosBatch ? handleOcrMultiplosResult : undefined
+        }
       />
     </>
   );

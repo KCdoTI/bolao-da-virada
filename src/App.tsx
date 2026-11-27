@@ -338,6 +338,39 @@ export default function App() {
     return false;
   };
 
+  const addGamesBatch = async (lista: Omit<Jogo, "id" | "criado_em">[]) => {
+    if (!lista.length) return false;
+    let sharedReceiptUrl = lista[0].foto_url;
+    if (sharedReceiptUrl?.startsWith("data:")) {
+      const uploaded = await pool.uploadReceipt(sharedReceiptUrl);
+      if (!uploaded) return false;
+      sharedReceiptUrl = uploaded;
+    }
+    const now = new Date().toISOString();
+    const novos: Jogo[] = lista.map((item) => ({
+      ...item,
+      foto_url: item.foto_url?.startsWith("data:")
+        ? sharedReceiptUrl
+        : item.foto_url,
+      id: crypto.randomUUID(),
+      criado_em: now,
+    }));
+    if (
+      await save(
+        {
+          ...state,
+          jogos: [...jogos, ...novos],
+        },
+        gameActionTag,
+      )
+    ) {
+      setModal(null);
+      setTab("jogos");
+      return true;
+    }
+    return false;
+  };
+
   const handleMigrateOverdueContest = async () => {
     if (!targetMigrationDraw) return;
     const confirmMsg = `Mudar este bolão do concurso #${bolao.concurso_numero} para o concurso #${targetMigrationDraw.numero} (sorteio previsto em ${targetMigrationDraw.dataSorteioBr})?\n\nAs participações e jogos serão mantidos e o prazo será reaberto até ${new Date(targetMigrationDraw.prazoSugeridoIso).toLocaleString("pt-BR")}.`;
@@ -882,6 +915,7 @@ export default function App() {
           isOpen
           onClose={() => setModal(null)}
           onSaveJogo={addGame}
+          onSaveJogosBatch={addGamesBatch}
           bolaoId={bolao.id}
           initialDezenas={prefill}
           initialTipoJogo={volanteTipoJogo}
