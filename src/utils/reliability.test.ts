@@ -1142,6 +1142,89 @@ test("Aumentar cotas de participante já pago cobra somente a diferença (+1 cot
     );
     assert.equal(personalDelivered.participantes[0].cota_entregue, true);
     assert.ok(personalDelivered.participantes[0].cota_entregue_em);
+
+    // Regressão real: mesmo com jogo com comprovante (foto_sha256), prazo vencido, fechado_em e resultado oficial da Caixa,
+    // clicar em "Cota entregue" (e desmarcar) deve confirmar sem falso conflito 409!
+    await db.putReceipt(
+      "a".repeat(64),
+      markedDelivered.bolao.id,
+      "data:image/jpeg;base64,/9j/4AAQ",
+    );
+    const withReceiptGame = await updatePool(
+      db,
+      created.adminToken,
+      {
+        bolao: markedDelivered.bolao,
+        participantes: markedDelivered.participantes.map((p) =>
+          p.id === "p-ev"
+            ? { ...p, cota_entregue: false, cota_entregue_em: undefined }
+            : p,
+        ),
+        jogos: [
+          {
+            id: "j-foto",
+            bolao_id: markedDelivered.bolao.id,
+            dezenas: [1, 2, 3, 4, 5, 6],
+            foto_url: "receipt:" + "a".repeat(64),
+            criado_em: "2026-11-26T22:00:00.000Z",
+          },
+        ],
+      },
+      markedDelivered.revision,
+    );
+
+    // Apura como resultado oficial da Caixa e fecha o bolão
+    const officialSettled = await updatePool(
+      db,
+      created.adminToken,
+      {
+        ...withReceiptGame,
+        bolao: {
+          ...withReceiptGame.bolao,
+          status: "sorteado",
+          fechado_em: "2026-11-26T23:00:00.000Z",
+          data_limite: "2020-01-01T00:00:00.000Z",
+          resultado: parseOfficialDraw(
+            fixture(),
+            "Mega-Sena",
+            withReceiptGame.bolao.concurso_numero,
+            "https://servicebus2.caixa.gov.br/test",
+          ),
+        },
+      },
+      withReceiptGame.revision,
+      "importar_caixa",
+      true,
+    );
+
+    // Simula o cliente reenviando state onde foto_sha256 vem reordenado pelo schema
+    const afterClickDelivered = await updatePool(
+      db,
+      created.adminToken,
+      {
+        bolao: officialSettled.bolao,
+        jogos: officialSettled.jogos.map(({ foto_sha256, ...rest }) => ({
+          ...rest,
+          foto_sha256,
+        })),
+        participantes: officialSettled.participantes.map((p) =>
+          p.id === "p-ev"
+            ? {
+                ...p,
+                cota_entregue: true,
+                cota_entregue_em: new Date().toISOString(),
+              }
+            : p,
+        ),
+      },
+      officialSettled.revision,
+      "cota_entregue_atualizada",
+    );
+    assert.equal(
+      afterClickDelivered.participantes.find((p) => p.id === "p-ev")
+        ?.cota_entregue,
+      true,
+    );
   } finally {
     db.close?.();
   }

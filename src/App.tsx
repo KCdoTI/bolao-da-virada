@@ -756,7 +756,19 @@ export default function App() {
           ))}
         </nav>
 
-        <fieldset disabled={pool.busy} className="min-w-0">
+        <fieldset disabled={pool.busy} className="min-w-0 space-y-3">
+          {pool.error && (
+            <div className="error" role="alert">
+              {pool.error}{" "}
+              <button
+                type="button"
+                className="underline font-semibold"
+                onClick={() => void pool.reload()}
+              >
+                Recarregar dados
+              </button>
+            </div>
+          )}
           {tab === "participantes" && (
             <ParticipantList
               readOnly={frozen}

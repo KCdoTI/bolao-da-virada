@@ -159,6 +159,23 @@ export const hashToken = (value: string) =>
 
 const token = () => randomBytes(32).toString("base64url");
 
+function canonicalValue(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(canonicalValue);
+  if (v && typeof v === "object") {
+    const sorted: Record<string, unknown> = {};
+    for (const k of Object.keys(v as Record<string, unknown>).sort()) {
+      const val = (v as Record<string, unknown>)[k];
+      if (val !== undefined) {
+        sorted[k] = canonicalValue(val);
+      }
+    }
+    return sorted;
+  }
+  return v;
+}
+
+export const canonicalJson = (v: unknown) => JSON.stringify(canonicalValue(v));
+
 export function computeRulesHash(bolao: Bolao): string {
   return hashToken(
     JSON.stringify({
@@ -518,8 +535,8 @@ export async function updatePool(
     action === "revogar_link" ? token() : old.bolao.hash_slug;
   if (
     !trustedResult &&
-    JSON.stringify(next.bolao.resultado) !==
-      JSON.stringify(old.bolao.resultado) &&
+    canonicalJson(next.bolao.resultado) !==
+      canonicalJson(old.bolao.resultado) &&
     next.bolao.resultado?.origem === "caixa_oficial"
   )
     throw new HttpError(400, "Importe o resultado diretamente da Caixa.");
@@ -530,7 +547,7 @@ export async function updatePool(
         const prevMatch = oldExtras.find(
           (o) => o.modalidade === re.modalidade && o.concurso === re.concurso,
         );
-        if (!prevMatch || JSON.stringify(prevMatch) !== JSON.stringify(re)) {
+        if (!prevMatch || canonicalJson(prevMatch) !== canonicalJson(re)) {
           throw new HttpError(
             400,
             "Importe o resultado extra diretamente da Caixa.",
@@ -540,20 +557,30 @@ export async function updatePool(
     }
   }
   const financial = (s: PoolState) =>
-    JSON.stringify({
+    canonicalJson({
       participantes: s.participantes.map((p) => ({
         id: p.id,
         nome: p.nome,
         qtd_cotas: p.qtd_cotas,
         cotas_pagas: obterCotasPagas(p),
-        status_pagamento: p.status_pagamento,
+        status_pagamento:
+          obterCotasPagas(p) >= p.qtd_cotas ? "Pago" : "Pendente",
       })),
-      jogos: s.jogos,
+      jogos: s.jogos.map((j) => ({
+        id: j.id,
+        dezenas: [...j.dezenas].sort((a, b) => a - b),
+        foto_url: j.foto_url || "",
+        codigo_bilhete: j.codigo_bilhete || "",
+        tipo_jogo: j.tipo_jogo || "normal",
+        observacao: j.observacao || "",
+        modalidade_especifica: j.modalidade_especifica || "",
+        concurso_especifico: j.concurso_especifico || 0,
+      })),
       modalidade: s.bolao.modalidade,
       concurso: s.bolao.concurso_numero,
       cota: s.bolao.valor_cota,
       prazo: s.bolao.data_limite,
-      regras: s.bolao.regras,
+      regras: s.bolao.regras || [],
     });
   const isReschedule = action === "adiar_concurso";
   if (isReschedule) {
@@ -671,7 +698,7 @@ export async function updatePool(
   let eventos = old.eventos || [];
   if (
     next.bolao.resultado &&
-    JSON.stringify(next.bolao.resultado) !== JSON.stringify(old.bolao.resultado)
+    canonicalJson(next.bolao.resultado) !== canonicalJson(old.bolao.resultado)
   ) {
     const { totalPremio } = calculatePoolPrizes(next);
     eventos = appendEvent(
