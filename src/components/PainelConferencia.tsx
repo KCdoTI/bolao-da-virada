@@ -498,11 +498,28 @@ export function PainelConferencia({
             Feche as participações antes de apurar o concurso.
           </p>
         )}
+        {jogos.length === 0 && !bolao.resultado && (
+          <p className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-sm font-medium">
+            ⚠️ Você ainda não cadastrou nenhum jogo neste bolão! Cadastre seus
+            bilhetes na aba <strong>Jogos</strong> antes de apurar (ao salvar o
+            resultado, o bolão fica definitivamente lacrado).
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           <button
             className="btn primary"
             disabled={!frozen || busy}
-            onClick={() => void onImport()}
+            onClick={() => {
+              if (
+                jogos.length === 0 &&
+                !confirm(
+                  "Nenhum jogo foi cadastrado ainda! Se apurar agora, o bolão será lacrado sem apostas. Deseja apurar mesmo assim?",
+                )
+              ) {
+                return;
+              }
+              void onImport();
+            }}
           >
             Consultar Caixa
           </button>

@@ -237,8 +237,10 @@ export default function App() {
   const eventos = state.eventos || [];
   const avisosNaoLidos = eventos.filter((e) => !e.lido).length;
   const adminBolao = { ...bolao, admin_token: pool.adminToken };
-  const frozen =
-    !!bolao.fechado_em || Date.now() >= Date.parse(bolao.data_limite);
+  const deadlinePassed = Date.now() >= Date.parse(bolao.data_limite);
+  // O organizador só fica impedido de cadastrar jogos / confirmar os últimos PIX
+  // quando lacrar manualmente ("fechado_em") ou depois que o resultado for apurado.
+  const frozen = Boolean(bolao.fechado_em || bolao.resultado);
   const info = getModalidadeInfo(bolao.modalidade);
   const participanteOrganizador =
     participantes.find((p) => p.is_organizador) || null;
@@ -260,21 +262,32 @@ export default function App() {
     availableFutureDraws.find((o) => o.numero === selectedNextDraw) ||
     availableFutureDraws[0];
 
+  const participantActionTag = deadlinePassed
+    ? "confirmacao_pos_prazo"
+    : "atualizado";
+  const gameActionTag = deadlinePassed ? "jogo_pos_prazo" : "atualizado";
+
   const addParticipant = async (p: Omit<Participante, "id">) => {
-    const ok = await save({
-      ...state,
-      participantes: [...participantes, { ...p, id: crypto.randomUUID() }],
-    });
+    const ok = await save(
+      {
+        ...state,
+        participantes: [...participantes, { ...p, id: crypto.randomUUID() }],
+      },
+      participantActionTag,
+    );
     if (ok) setModal(null);
     return ok;
   };
 
   const addParticipantsBatch = async (lista: Omit<Participante, "id">[]) => {
     const novos = lista.map((p) => ({ ...p, id: crypto.randomUUID() }));
-    const ok = await save({
-      ...state,
-      participantes: [...participantes, ...novos],
-    });
+    const ok = await save(
+      {
+        ...state,
+        participantes: [...participantes, ...novos],
+      },
+      participantActionTag,
+    );
     if (ok) setModal(null);
     return ok;
   };
@@ -287,7 +300,7 @@ export default function App() {
           p.id === updated.id ? updated : p,
         ),
       },
-      "participante_editado",
+      deadlinePassed ? "confirmacao_pos_prazo" : "participante_editado",
     );
     if (ok) {
       setEditingParticipant(null);
@@ -303,17 +316,20 @@ export default function App() {
       j = { ...j, foto_url: url };
     }
     if (
-      await save({
-        ...state,
-        jogos: [
-          ...jogos,
-          {
-            ...j,
-            id: crypto.randomUUID(),
-            criado_em: new Date().toISOString(),
-          },
-        ],
-      })
+      await save(
+        {
+          ...state,
+          jogos: [
+            ...jogos,
+            {
+              ...j,
+              id: crypto.randomUUID(),
+              criado_em: new Date().toISOString(),
+            },
+          ],
+        },
+        gameActionTag,
+      )
     ) {
       setModal(null);
       setTab("jogos");
@@ -433,6 +449,19 @@ export default function App() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5 pt-1">
+              {!frozen && (
+                <button
+                  type="button"
+                  className="btn bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-700 font-bold"
+                  onClick={() => {
+                    setPrefill([]);
+                    setVolanteTipoJogo("normal");
+                    setModal("jogo");
+                  }}
+                >
+                  + Cadastrar jogos do concurso #{bolao.concurso_numero}
+                </button>
+              )}
               <button
                 type="button"
                 className="btn primary"
@@ -473,7 +502,11 @@ export default function App() {
         <div className="card flex flex-wrap justify-between gap-4 items-center">
           <div className="space-y-1">
             <strong className="text-base block">
-              {frozen ? "Participações encerradas" : "Participações abertas"}
+              {frozen
+                ? "Bolão lacrado / apurado"
+                : deadlinePassed
+                  ? "Prazo dos convidados encerrado · Lançamento de jogos liberado para o organizador"
+                  : "Participações abertas"}
             </strong>
             <p className="text-sm">
               Prazo de pagamento:{" "}
@@ -697,24 +730,27 @@ export default function App() {
               bolao={bolao}
               participantes={participantes}
               onToggleStatus={(id) =>
-                void save({
-                  ...state,
-                  participantes: participantes.map((p) =>
-                    p.id === id
-                      ? p.status_pagamento === "Pago"
-                        ? {
-                            ...p,
-                            status_pagamento: "Pendente",
-                            cotas_pagas: 0,
-                          }
-                        : {
-                            ...p,
-                            status_pagamento: "Pago",
-                            cotas_pagas: p.qtd_cotas,
-                          }
-                      : p,
-                  ),
-                })
+                void save(
+                  {
+                    ...state,
+                    participantes: participantes.map((p) =>
+                      p.id === id
+                        ? p.status_pagamento === "Pago"
+                          ? {
+                              ...p,
+                              status_pagamento: "Pendente",
+                              cotas_pagas: 0,
+                            }
+                          : {
+                              ...p,
+                              status_pagamento: "Pago",
+                              cotas_pagas: p.qtd_cotas,
+                            }
+                        : p,
+                    ),
+                  },
+                  participantActionTag,
+                )
               }
               onEditParticipante={(p) => {
                 setEditingParticipant(p);
@@ -722,10 +758,13 @@ export default function App() {
               }}
               onRemoveParticipante={(id) => {
                 if (confirm("Remover participante?"))
-                  void save({
-                    ...state,
-                    participantes: participantes.filter((p) => p.id !== id),
-                  });
+                  void save(
+                    {
+                      ...state,
+                      participantes: participantes.filter((p) => p.id !== id),
+                    },
+                    participantActionTag,
+                  );
               }}
               onOpenAddModal={() => {
                 setEditingParticipant(null);
@@ -751,10 +790,13 @@ export default function App() {
               }}
               onRemoveJogo={(id) => {
                 if (confirm("Excluir jogo?"))
-                  void save({
-                    ...state,
-                    jogos: jogos.filter((j) => j.id !== id),
-                  });
+                  void save(
+                    {
+                      ...state,
+                      jogos: jogos.filter((j) => j.id !== id),
+                    },
+                    gameActionTag,
+                  );
               }}
               onOpenAiConsultant={() => {
                 const nums = Array.from(

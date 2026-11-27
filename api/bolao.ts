@@ -50,6 +50,8 @@ export default async function handler(req: any, res: any) {
       ![
         "atualizado",
         "participante_editado",
+        "jogo_pos_prazo",
+        "confirmacao_pos_prazo",
         "adiar_concurso",
         "fechado",
         "resultado_manual",

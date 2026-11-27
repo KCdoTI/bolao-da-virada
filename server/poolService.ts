@@ -571,8 +571,14 @@ export async function updatePool(
     }
   }
   const expired = Date.now() >= Date.parse(old.bolao.data_limite);
+  const isPostDeadlineOrganizerLaunch =
+    (action === "jogo_pos_prazo" || action === "confirmacao_pos_prazo") &&
+    !old.bolao.fechado_em &&
+    !old.bolao.resultado;
+
   if (
     !isReschedule &&
+    !isPostDeadlineOrganizerLaunch &&
     (old.bolao.fechado_em || expired) &&
     financial(next) !== financial(old)
   )
@@ -656,10 +662,17 @@ export async function updatePool(
   }
   next.eventos = eventos;
 
+  const hasAnySettledResult = Boolean(
+    next.bolao.resultado || (next.bolao.resultados_extras?.length || 0) > 0,
+  );
   next.bolao.fechado_em = isReschedule
     ? undefined
     : old.bolao.fechado_em ||
-      (next.bolao.status !== "aberto" || expired ? now : undefined);
+      (isPostDeadlineOrganizerLaunch && !hasAnySettledResult
+        ? undefined
+        : next.bolao.status !== "aberto" || hasAnySettledResult || expired
+          ? now
+          : undefined);
   next.bolao.status = next.bolao.resultado
     ? "sorteado"
     : next.bolao.fechado_em

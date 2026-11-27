@@ -17,11 +17,8 @@ export default async function handler(req: any, res: any) {
     }
     if (req.method !== "POST")
       throw new HttpError(405, "Método não permitido.");
-    if (
-      row.payload.bolao.fechado_em ||
-      Date.now() >= Date.parse(row.payload.bolao.data_limite)
-    )
-      throw new HttpError(409, "Bolão encerrado.");
+    if (row.payload.bolao.fechado_em || row.payload.bolao.resultado)
+      throw new HttpError(409, "Bolão já lacrado ou apurado.");
     if (
       !String(req.headers["content-type"] || "").startsWith("application/json")
     )
