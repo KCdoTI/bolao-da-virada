@@ -1175,26 +1175,38 @@ test("Aumentar cotas de participante já pago cobra somente a diferença (+1 cot
       markedDelivered.revision,
     );
 
-    // Apura como resultado oficial da Caixa e fecha o bolão
-    const officialSettled = await updatePool(
+    // Fecha o bolão primeiro e em seguida apura como resultado oficial da Caixa
+    const closedBeforeSettle = await updatePool(
       db,
       created.adminToken,
       {
         ...withReceiptGame,
         bolao: {
           ...withReceiptGame.bolao,
+          status: "encerrado",
+        },
+      },
+      withReceiptGame.revision,
+      "fechado",
+    );
+
+    const officialSettled = await updatePool(
+      db,
+      created.adminToken,
+      {
+        ...closedBeforeSettle,
+        bolao: {
+          ...closedBeforeSettle.bolao,
           status: "sorteado",
-          fechado_em: "2026-11-26T23:00:00.000Z",
-          data_limite: "2020-01-01T00:00:00.000Z",
           resultado: parseOfficialDraw(
             fixture(),
             "Mega-Sena",
-            withReceiptGame.bolao.concurso_numero,
+            closedBeforeSettle.bolao.concurso_numero,
             "https://servicebus2.caixa.gov.br/test",
           ),
         },
       },
-      withReceiptGame.revision,
+      closedBeforeSettle.revision,
       "importar_caixa",
       true,
     );
