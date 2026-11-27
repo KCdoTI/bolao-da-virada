@@ -1122,14 +1122,16 @@ test("Aumentar cotas de participante já pago cobra somente a diferença (+1 cot
         bolao: withPendente.bolao,
         jogos: withPendente.jogos,
         participantes: withPendente.participantes.map((p) =>
-          p.id === "p-ev" ? { ...p, cota_entregue: true } : p,
+          p.id === evInicial.id ? { ...p, cota_entregue: true } : p,
         ),
       },
       withPendente.revision,
       "cota_entregue_atualizada",
     );
 
-    const evDelivered = markedDelivered.participantes.find((p) => p.id === "p-ev")!;
+    const evDelivered = markedDelivered.participantes.find(
+      (p) => p.id === evInicial.id,
+    )!;
     assert.equal(evDelivered.cota_entregue, true);
     assert.ok(evDelivered.cota_entregue_em);
 
@@ -1156,7 +1158,7 @@ test("Aumentar cotas de participante já pago cobra somente a diferença (+1 cot
       {
         bolao: markedDelivered.bolao,
         participantes: markedDelivered.participantes.map((p) =>
-          p.id === "p-ev"
+          p.id === evInicial.id
             ? { ...p, cota_entregue: false, cota_entregue_em: undefined }
             : p,
         ),
@@ -1208,7 +1210,7 @@ test("Aumentar cotas de participante já pago cobra somente a diferença (+1 cot
           foto_sha256,
         })),
         participantes: officialSettled.participantes.map((p) =>
-          p.id === "p-ev"
+          p.id === evInicial.id
             ? {
                 ...p,
                 cota_entregue: true,
@@ -1221,7 +1223,7 @@ test("Aumentar cotas de participante já pago cobra somente a diferença (+1 cot
       "cota_entregue_atualizada",
     );
     assert.equal(
-      afterClickDelivered.participantes.find((p) => p.id === "p-ev")
+      afterClickDelivered.participantes.find((p) => p.id === evInicial.id)
         ?.cota_entregue,
       true,
     );
