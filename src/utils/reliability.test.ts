@@ -1074,6 +1074,74 @@ test("Aumentar cotas de participante já pago cobra somente a diferença (+1 cot
     assert.equal(fullyPaid.participantes[0].status_pagamento, "Pago");
     assert.equal(obterCotasPagas(fullyPaid.participantes[0]), 2);
     assert.equal(obterCotasPendentes(fullyPaid.participantes[0]), 0);
+
+    // Check "Cota entregue": bloqueia se estiver Pendente e libera quando Pago (inclusive após fechamento)
+    const revBefore = fullyPaid.revision;
+    const withPendente = await updatePool(
+      db,
+      created.adminToken,
+      {
+        bolao: fullyPaid.bolao,
+        jogos: fullyPaid.jogos,
+        participantes: [
+          ...fullyPaid.participantes,
+          {
+            id: "p-pend",
+            bolao_id: fullyPaid.bolao.id,
+            nome: "Pendente Teste",
+            telefone: "11911112222",
+            qtd_cotas: 1,
+            status_pagamento: "Pendente",
+          },
+        ],
+      },
+      revBefore,
+    );
+
+    await assert.rejects(
+      updatePool(
+        db,
+        created.adminToken,
+        {
+          bolao: withPendente.bolao,
+          jogos: withPendente.jogos,
+          participantes: withPendente.participantes.map((p) =>
+            p.id === "p-pend" ? { ...p, cota_entregue: true } : p,
+          ),
+        },
+        withPendente.revision,
+        "cota_entregue_atualizada",
+      ),
+      /Confirme o pagamento completo/,
+    );
+
+    const markedDelivered = await updatePool(
+      db,
+      created.adminToken,
+      {
+        bolao: withPendente.bolao,
+        jogos: withPendente.jogos,
+        participantes: withPendente.participantes.map((p) =>
+          p.id === "p-ev" ? { ...p, cota_entregue: true } : p,
+        ),
+      },
+      withPendente.revision,
+      "cota_entregue_atualizada",
+    );
+
+    const evDelivered = markedDelivered.participantes.find((p) => p.id === "p-ev")!;
+    assert.equal(evDelivered.cota_entregue, true);
+    assert.ok(evDelivered.cota_entregue_em);
+
+    // Visível no link individual do próprio cotista
+    const personalDelivered: any = await readPool(
+      db,
+      markedDelivered.bolao.hash_slug,
+      undefined,
+      evDelivered.token_acesso,
+    );
+    assert.equal(personalDelivered.participantes[0].cota_entregue, true);
+    assert.ok(personalDelivered.participantes[0].cota_entregue_em);
   } finally {
     db.close?.();
   }

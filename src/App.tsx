@@ -773,6 +773,8 @@ export default function App() {
                               ...p,
                               status_pagamento: "Pendente",
                               cotas_pagas: 0,
+                              cota_entregue: false,
+                              cota_entregue_em: undefined,
                             }
                           : {
                               ...p,
@@ -783,6 +785,25 @@ export default function App() {
                     ),
                   },
                   participantActionTag,
+                )
+              }
+              onToggleCotaEntregue={(id) =>
+                void save(
+                  {
+                    ...state,
+                    participantes: participantes.map((p) =>
+                      p.id === id
+                        ? {
+                            ...p,
+                            cota_entregue: !p.cota_entregue,
+                            cota_entregue_em: !p.cota_entregue
+                              ? new Date().toISOString()
+                              : undefined,
+                          }
+                        : p,
+                    ),
+                  },
+                  "cota_entregue_atualizada",
                 )
               }
               onEditParticipante={(p) => {

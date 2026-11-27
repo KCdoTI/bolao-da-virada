@@ -12,6 +12,7 @@ import {
   Link,
   Pencil,
   Crown,
+  Ticket,
 } from 'lucide-react';
 import { Participante, Bolao } from '../types';
 import { obterCotasPagas, obterCotasPendentes } from '../utils/lotteryEngine';
@@ -27,6 +28,7 @@ interface ParticipantListProps {
   bolao: Bolao;
   participantes: Participante[];
   onToggleStatus: (id: string) => void;
+  onToggleCotaEntregue?: (id: string) => void;
   onEditParticipante?: (participante: Participante) => void;
   onRemoveParticipante: (id: string) => void;
   onOpenAddModal: () => void;
@@ -37,16 +39,24 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
   bolao,
   participantes,
   onToggleStatus,
+  onToggleCotaEntregue,
   onEditParticipante,
   onRemoveParticipante,
   onOpenAddModal,
 }) => {
   const [search, setSearch] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState<'todos' | 'Pago' | 'Pendente'>('todos');
+  const [filtroStatus, setFiltroStatus] = useState<
+    'todos' | 'Pago' | 'Pendente' | 'FaltaEntregar'
+  >('todos');
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const pendentes = participantes.filter((p) => obterCotasPendentes(p) > 0);
+  const pagosLista = participantes.filter(
+    (p) => obterCotasPendentes(p) === 0 && obterCotasPagas(p) > 0,
+  );
+  const entreguesCount = pagosLista.filter((p) => p.cota_entregue).length;
+  const faltaEntregarCount = pagosLista.length - entreguesCount;
 
   const copyParticipantLink = (p: Participante) => {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
@@ -60,8 +70,15 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
     const matchesSearch =
       p.nome.toLowerCase().includes(search.toLowerCase()) ||
       (p.telefone || '').includes(search);
+    const isTotalPago = obterCotasPendentes(p) === 0 && obterCotasPagas(p) > 0;
     const matchesStatus =
-      filtroStatus === 'todos' || p.status_pagamento === filtroStatus;
+      filtroStatus === 'todos'
+        ? true
+        : filtroStatus === 'Pago'
+          ? isTotalPago
+          : filtroStatus === 'Pendente'
+            ? !isTotalPago
+            : isTotalPago && !p.cota_entregue;
     return matchesSearch && matchesStatus;
   });
 
@@ -69,11 +86,19 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xs border border-slate-200/80 dark:border-slate-800 overflow-hidden">
       {/* Top Bar da Lista */}
       <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Users size={18} className="text-emerald-600 dark:text-emerald-400" />
-          <h2 className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100">
-            Participantes do Bolão ({participantes.length})
-          </h2>
+        <div>
+          <div className="flex items-center gap-2">
+            <Users size={18} className="text-emerald-600 dark:text-emerald-400" />
+            <h2 className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100">
+              Participantes do Bolão ({participantes.length})
+            </h2>
+          </div>
+          {pagosLista.length > 0 && (
+            <p className="text-xs text-slate-500 mt-0.5">
+              Cotas entregues aos pagos: <strong>{entreguesCount}</strong> de{' '}
+              <strong>{pagosLista.length}</strong> participante(s) quitado(s)
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -116,18 +141,28 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
 
         <div className="flex items-center gap-1 self-stretch sm:self-auto overflow-x-auto">
           <span className="text-[11px] font-medium text-slate-400 mr-1 hidden sm:inline">Filtrar:</span>
-          {(['todos', 'Pago', 'Pendente'] as const).map((st) => (
+          {(
+            [
+              { id: 'todos', label: 'Todos' },
+              { id: 'Pago', label: 'Pago' },
+              { id: 'Pendente', label: 'Pendente' },
+              {
+                id: 'FaltaEntregar',
+                label: `Falta entregar (${faltaEntregarCount})`,
+              },
+            ] as const
+          ).map((st) => (
             <button
-              key={st}
+              key={st.id}
               type="button"
-              onClick={() => setFiltroStatus(st)}
-              className={`flex-1 sm:flex-initial text-xs font-semibold px-3 py-2 min-h-[38px] rounded-lg transition-all duration-150 active:scale-[0.98] ${
-                filtroStatus === st
+              onClick={() => setFiltroStatus(st.id)}
+              className={`flex-1 sm:flex-initial whitespace-nowrap text-xs font-semibold px-3 py-2 min-h-[38px] rounded-lg transition-all duration-150 active:scale-[0.98] ${
+                filtroStatus === st.id
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
               }`}
             >
-              {st === 'todos' ? 'Todos' : st}
+              {st.label}
             </button>
           ))}
         </div>
@@ -175,6 +210,19 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
                       {cotasJaPagas > 0 && cotasFaltantes > 0 && (
                         <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
                           Pagou {cotasJaPagas}/{participante.qtd_cotas} · falta R$ {valorRestante.toFixed(2)}
+                        </span>
+                      )}
+                      {isPago && participante.cota_entregue && (
+                        <span
+                          title={
+                            participante.cota_entregue_em
+                              ? `Entregue em ${new Date(participante.cota_entregue_em).toLocaleString('pt-BR')}`
+                              : 'Cota entregue'
+                          }
+                          className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900 border border-indigo-300"
+                        >
+                          <Check size={10} />
+                          Cota entregue
                         </span>
                       )}
                       {!isPago && participante.avisou_pagamento_em && (
@@ -231,6 +279,48 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
                         </>
                       )}
                     </button>
+
+                    {/* Botão de Check: Cota Entregue (somente para quem já está Pago) */}
+                    {onToggleCotaEntregue && (
+                      <button
+                        type="button"
+                        disabled={!isPago}
+                        onClick={() => onToggleCotaEntregue(participante.id)}
+                        aria-label={
+                          !isPago
+                            ? `Cota bloqueada para ${participante.nome}: confirme o pagamento primeiro`
+                            : participante.cota_entregue
+                              ? `Desmarcar entrega de cota de ${participante.nome}`
+                              : `Marcar cota entregue para ${participante.nome}`
+                        }
+                        title={
+                          !isPago
+                            ? 'Confirme o pagamento primeiro para liberar a marcação de cota entregue'
+                            : participante.cota_entregue
+                              ? `Cota entregue${participante.cota_entregue_em ? ` em ${new Date(participante.cota_entregue_em).toLocaleString('pt-BR')}` : ''} (clique para desmarcar)`
+                              : 'Clique para marcar que a cota já foi entregue a este participante'
+                        }
+                        className={`text-xs font-semibold px-3 py-2 min-h-[40px] rounded-xl transition-all duration-150 flex items-center gap-1.5 border shadow-xs ${
+                          !isPago
+                            ? 'bg-slate-100 text-slate-400 border-slate-200 opacity-50 cursor-not-allowed'
+                            : participante.cota_entregue
+                              ? 'bg-indigo-600 text-white border-indigo-700 hover:bg-indigo-500 active:scale-[0.98] cursor-pointer'
+                              : 'bg-white text-slate-700 border-slate-300 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-800 active:scale-[0.98] cursor-pointer'
+                        }`}
+                      >
+                        {participante.cota_entregue && isPago ? (
+                          <>
+                            <Check size={14} />
+                            <span>Cota entregue</span>
+                          </>
+                        ) : (
+                          <>
+                            <Ticket size={14} />
+                            <span>Entregar cota</span>
+                          </>
+                        )}
+                      </button>
+                    )}
 
                     {/* Editar Participante (Nome, WhatsApp, Cotas) */}
                     {onEditParticipante && (

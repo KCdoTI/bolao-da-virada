@@ -933,6 +933,29 @@ export function PublicTransparencyView({
                 )}
               </p>
 
+              {/* Status da Entrega da Cota (visível no link individual do cotista) */}
+              {isFullyPaid && (
+                <div
+                  className={`p-2.5 rounded-xl border text-xs font-semibold flex flex-wrap items-center justify-between gap-2 ${
+                    own.cota_entregue
+                      ? "bg-indigo-50 border-indigo-300 text-indigo-950"
+                      : "bg-white border-emerald-200 text-slate-700"
+                  }`}
+                >
+                  <span>
+                    {own.cota_entregue
+                      ? "🎟️ Cota entregue pelo organizador!"
+                      : "🎟️ Pagamento quitado · Aguardando entrega/retirada da cota"}
+                  </span>
+                  {own.cota_entregue && own.cota_entregue_em && (
+                    <span className="text-[11px] font-normal text-indigo-800">
+                      Registrado em{" "}
+                      {new Date(own.cota_entregue_em).toLocaleString("pt-BR")}
+                    </span>
+                  )}
+                </div>
+              )}
+
               {(bolao.resultado || (bolao.resultados_extras?.length || 0) > 0) && (
                 <div className="pt-2 border-t border-emerald-200 space-y-1">
                   <p className="text-lg font-bold text-emerald-900">

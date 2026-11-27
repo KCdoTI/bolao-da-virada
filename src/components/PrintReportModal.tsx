@@ -102,6 +102,14 @@ export function PrintReportModal({
                           {new Date(p.pago_em).toLocaleString("pt-BR")}
                         </small>
                       )}
+                      {p.cota_entregue && (
+                        <small className="block font-semibold">
+                          ✓ Cota entregue
+                          {p.cota_entregue_em
+                            ? ` (${new Date(p.cota_entregue_em).toLocaleString("pt-BR")})`
+                            : ""}
+                        </small>
+                      )}
                     </td>
                   </tr>
                 ))}

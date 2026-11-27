@@ -110,6 +110,8 @@ const schema = z.object({
         aceite_em: date.optional(),
         regras_aceitas_hash: text.optional(),
         avisou_pagamento_em: date.optional(),
+        cota_entregue: z.boolean().optional(),
+        cota_entregue_em: date.optional(),
       }),
     )
     .max(500),
@@ -621,10 +623,32 @@ export async function updatePool(
       rawPagas >= p.qtd_cotas ? ("Pago" as const) : ("Pendente" as const);
     const cotasIncreased = Boolean(previous && p.qtd_cotas > previous.qtd_cotas);
 
+    if (
+      action === "cota_entregue_atualizada" &&
+      p.cota_entregue &&
+      normalizedStatus !== "Pago"
+    ) {
+      throw new HttpError(
+        400,
+        "Confirme o pagamento completo do participante antes de marcar a cota como entregue.",
+      );
+    }
+
+    const finalEntregue =
+      normalizedStatus === "Pago" && !cotasIncreased
+        ? Boolean(p.cota_entregue)
+        : false;
+
     return {
       ...p,
       cotas_pagas: rawPagas,
       status_pagamento: normalizedStatus,
+      cota_entregue: finalEntregue,
+      cota_entregue_em: finalEntregue
+        ? previous?.cota_entregue && previous.cota_entregue_em
+          ? previous.cota_entregue_em
+          : p.cota_entregue_em || now
+        : undefined,
       token_acesso: previous?.token_acesso || token(),
       aceite_em: p.aceite_em || previous?.aceite_em,
       regras_aceitas_hash:
@@ -665,10 +689,13 @@ export async function updatePool(
   const hasAnySettledResult = Boolean(
     next.bolao.resultado || (next.bolao.resultados_extras?.length || 0) > 0,
   );
+  const keepOpenPostDeadline =
+    (isPostDeadlineOrganizerLaunch || action === "cota_entregue_atualizada") &&
+    !hasAnySettledResult;
   next.bolao.fechado_em = isReschedule
     ? undefined
     : old.bolao.fechado_em ||
-      (isPostDeadlineOrganizerLaunch && !hasAnySettledResult
+      (keepOpenPostDeadline
         ? undefined
         : next.bolao.status !== "aberto" || hasAnySettledResult || expired
           ? now

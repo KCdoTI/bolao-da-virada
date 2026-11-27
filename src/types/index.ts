@@ -54,6 +54,8 @@ export interface Participante {
   aceite_em?: string;
   regras_aceitas_hash?: string;
   avisou_pagamento_em?: string;
+  cota_entregue?: boolean;
+  cota_entregue_em?: string;
 }
 
 export interface OpcaoConcursoCaixa {
