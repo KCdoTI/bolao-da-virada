@@ -302,7 +302,7 @@ export const VolanteModal: React.FC<VolanteModalProps> = ({
                     >
                       {GRUPOS_MODALIDADES.map((g) => (
                         <optgroup key={g.grupo} label={g.grupo}>
-                          {g.itens.map((id) => (
+                          {g.opcoes.map((id) => (
                             <option key={id} value={id}>
                               {CATALOGO_MODALIDADES[id]?.icone} {id}
                               {id === modalidade ? ' (mesma do bolão)' : ''}

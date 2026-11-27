@@ -122,14 +122,15 @@ test('buildWhatsAppReminderGroupMessage formats reminder with pending counts and
   const groupMsg = buildWhatsAppReminderGroupMessage(mockBolao, pendentes, 'https://test.app/#b-test');
   assert.ok(groupMsg.includes('BOLÃO DOS AMIGOS'));
   assert.ok(groupMsg.includes('Cotas a confirmar: 3 cota(s) (Total: R$ 150.00)'));
-  assert.ok(groupMsg.includes('organizador@pix.com'));
+  assert.ok(!groupMsg.includes('organizador@pix.com'));
   assert.ok(groupMsg.includes('https://test.app/#b-test'));
 
-  const indMsg = buildWhatsAppIndividualReminderMessage(pendentes[0], mockBolao, 'https://test.app/#b-test');
+  const indMsg = buildWhatsAppIndividualReminderMessage(pendentes[0], mockBolao, 'https://test.app/#cota-b-test-hash.tok1');
   assert.ok(indMsg.includes('Olá Fernanda!'));
   assert.ok(indMsg.includes('2 cotas'));
   assert.ok(indMsg.includes('R$ 100.00'));
-  assert.ok(indMsg.includes('organizador@pix.com'));
+  assert.ok(indMsg.includes('https://test.app/#cota-b-test-hash.tok1'));
+  assert.ok(!indMsg.includes('organizador@pix.com'));
 
   const directUrl = buildWhatsAppDirectUrl('(31) 98456-7890', 'Olá');
   assert.ok(directUrl.startsWith('https://wa.me/5531984567890?text='));

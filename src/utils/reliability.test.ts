@@ -1019,7 +1019,7 @@ test("Aumentar cotas de participante já pago cobra somente a diferença (+1 cot
     const evts = await managePoolEvents(db, created.adminToken, {
       onlyUnacked: true,
     });
-    assert.match(evts.eventos[0].mensagem_whatsapp, /\+1 cota\(s\) — \*R\$ 12\.00\*/);
+    assert.match(evts.eventos[0].mensagem_whatsapp, /\*\+1 cota\(s\)\* — \*R\$ 12\.00\*/);
 
     // Organizador confirma o pagamento complementar -> passa para 2/2 cotas pagas
     const currentAdmin: any = await readPool(db, "", created.adminToken);

@@ -40,7 +40,7 @@ test('buildWhatsAppProofSubmissionUrl creates proper direct whatsapp link', () =
   assert.ok(url.includes('Mariana%20Rios'));
 });
 
-test('buildWhatsAppIndividualParticipantLinkMessage formats participant invite message', () => {
+test('buildWhatsAppIndividualParticipantLinkMessage formats participant invite message without leaking PIX before acceptance', () => {
   const msg = buildWhatsAppIndividualParticipantLinkMessage(
     mockParticipantes[1],
     mockBolao,
@@ -48,5 +48,5 @@ test('buildWhatsAppIndividualParticipantLinkMessage formats participant invite m
   );
   assert.ok(msg.includes('Mariana Rios'));
   assert.ok(msg.includes('https://bolao.app/#cota-cot_mariana'));
-  assert.ok(msg.includes('kelvin.organizador@pix.com.br'));
+  assert.ok(!msg.includes('kelvin.organizador@pix.com.br'));
 });
